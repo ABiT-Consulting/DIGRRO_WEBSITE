@@ -77,6 +77,18 @@ export default function Home() {
       description: 'Business intelligence, data warehousing, real-time analytics, and data-driven insights.',
       gradient: 'from-purple-500 to-blue-500',
     },
+    {
+      icon: Layers,
+      title: 'Add-On Development',
+      description: 'Expert SAP and Odoo add-on development with deep technical expertise and custom modules.',
+      gradient: 'from-blue-500 to-indigo-500',
+    },
+    {
+      icon: Network,
+      title: 'Integration Services',
+      description: 'Seamless system integration, API development, and third-party service connectivity.',
+      gradient: 'from-indigo-500 to-cyan-500',
+    },
   ];
 
   const aiFeatures = [
@@ -1093,9 +1105,20 @@ export default function Home() {
                     <Phone size={24} className="text-blue-400 flex-shrink-0 mt-1" />
                     <div>
                       <div className="text-gray-400 text-sm mb-1">Phone</div>
-                      <a href="tel:+966123456789" className="text-white font-semibold hover:text-blue-400 transition-colors">
-                        +966 12 345 6789
-                      </a>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-gray-500 text-xs mb-1">Regional Sales Manager</div>
+                          <a href="tel:+971544649231" className="text-white font-semibold hover:text-blue-400 transition-colors">
+                            +971 54 464 9231
+                          </a>
+                        </div>
+                        <div>
+                          <div className="text-gray-500 text-xs mb-1">Creative Department Manager</div>
+                          <a href="tel:+971562551980" className="text-white font-semibold hover:text-blue-400 transition-colors">
+                            +971 56 255 1980
+                          </a>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-start space-x-4">
