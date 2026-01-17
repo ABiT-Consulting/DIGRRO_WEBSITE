@@ -91,7 +91,7 @@ export default function AIAssistant() {
         ...current,
         { id: createId(), role: 'assistant', content: reply },
       ]);
-    } catch (err) {
+    } catch {
       setError('Unable to reach the AI service.');
       setMessages((current) => [
         ...current,
