@@ -50,9 +50,18 @@ steps:
     displayName: Selenium tests
     condition: and(succeeded(), eq(variables.run_selenium_tests, 'true'))
 
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)/dist'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/web-dist.zip'
+      replaceExistingArchive: true
+    displayName: Create dist zip
+
   - task: PublishBuildArtifacts@1
     inputs:
-      PathtoPublish: dist
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/web-dist.zip'
       ArtifactName: web-dist
       publishLocation: Container
-    displayName: Publish dist
+    displayName: Publish artifact
