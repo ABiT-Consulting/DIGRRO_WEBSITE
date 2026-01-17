@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Brain, TrendingUp, Smartphone, Users, Target, BarChart3, Megaphone, LineChart, SearchCheck, Globe, Rocket, Code, Zap, CheckCircle, Send, ArrowDown, Mail, Phone, MapPin, Sparkles, Network, Cpu, Database, Palette, Layers, Type, Pen, Video, Film, Monitor, Play, Linkedin, Twitter, Facebook, Instagram } from 'lucide-react';
+import { ArrowRight, Brain, TrendingUp, Smartphone, Users, Target, BarChart3, Megaphone, LineChart, SearchCheck, Globe, Rocket, Code, Zap, CheckCircle, Send, ArrowDown, Mail, Phone, MapPin, Sparkles, Network, Cpu, Database, Palette, Layers, Type, Pen, Video, Film, Monitor, Play, Linkedin, Facebook, Instagram } from 'lucide-react';
 import AnimatedCounter from '../components/AnimatedCounter';
 import VideoShowreel from '../components/VideoShowreel';
 import { useScrollReveal } from '../hooks/useScrollReveal';
@@ -21,10 +21,33 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('Form submitted:', formData);
-    setIsSubmitting(false);
-    setFormData({ name: '', email: '', company: '', message: '' });
+
+    try {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-contact-email`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('Thank you! Your message has been sent successfully. We will get back to you soon.');
+        setFormData({ name: '', email: '', company: '', message: '' });
+      } else {
+        throw new Error(result.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('Sorry, there was an error sending your message. Please try again or contact us directly at info@digrro.com');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const stats = [
@@ -1126,7 +1149,7 @@ export default function Home() {
                     <div>
                       <div className="text-gray-400 text-sm mb-1">Locations</div>
                       <div className="text-white font-semibold">
-                        Saudi Arabia • UAE • Qatar
+                        Saudi Arabia • UAE • Qatar • UK • Jordan
                       </div>
                     </div>
                   </div>
@@ -1156,7 +1179,7 @@ export default function Home() {
 
             <div className="flex items-center justify-center space-x-6 mb-8">
               <a
-                href="https://linkedin.com/company/digrro"
+                href="https://www.linkedin.com/company/digrro/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-3 bg-gray-800 border-2 border-gray-700 rounded-xl hover:border-blue-400 transition-all"
@@ -1171,10 +1194,10 @@ export default function Home() {
                 className="group p-3 bg-gray-800 border-2 border-gray-700 rounded-xl hover:border-blue-400 transition-all"
                 aria-label="X (Twitter)"
               >
-                <Twitter size={20} className="text-gray-400 group-hover:text-blue-400 transition-colors" />
+                <XIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
               </a>
               <a
-                href="https://facebook.com/digrro"
+                href="https://www.facebook.com/share/1BnYvKUZky/?mibextid=wwXIfr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-3 bg-gray-800 border-2 border-gray-700 rounded-xl hover:border-blue-400 transition-all"
@@ -1183,7 +1206,7 @@ export default function Home() {
                 <Facebook size={20} className="text-gray-400 group-hover:text-blue-400 transition-colors" />
               </a>
               <a
-                href="https://instagram.com/digrro"
+                href="https://www.instagram.com/digrro.ai/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-3 bg-gray-800 border-2 border-gray-700 rounded-xl hover:border-blue-400 transition-all"
@@ -1192,22 +1215,13 @@ export default function Home() {
                 <Instagram size={20} className="text-gray-400 group-hover:text-blue-400 transition-colors" />
               </a>
               <a
-                href="https://threads.net/@digrro"
+                href="https://www.instagram.com/digrro.ai/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-3 bg-gray-800 border-2 border-gray-700 rounded-xl hover:border-blue-400 transition-all"
                 aria-label="Threads"
               >
                 <ThreadsIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
-              </a>
-              <a
-                href="https://tiktok.com/@digrro"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group p-3 bg-gray-800 border-2 border-gray-700 rounded-xl hover:border-blue-400 transition-all"
-                aria-label="TikTok"
-              >
-                <TikTokIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
               </a>
             </div>
 
@@ -1223,16 +1237,16 @@ export default function Home() {
 
 function ThreadsIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg {...props} fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12.186 3.998c-2.36 0-4.294.811-5.579 2.35-.844.98-1.411 2.29-1.683 3.86l2.474.296c.186-1.234.604-2.188 1.237-2.844.876-1.001 2.156-1.478 3.897-1.478 1.18 0 2.242.296 3.079.855.808.539 1.391 1.398 1.594 2.367.134.619.156 1.413.068 2.423-.03.353-.053.653-.068.906-.015.254-.022.446-.022.577 0 .384.023.713.068.987.045.274.135.51.27.71.134.199.317.361.547.487.23.125.527.188.891.188.364 0 .66-.063.89-.188.23-.126.413-.288.547-.487.135-.2.225-.436.27-.71.045-.274.068-.603.068-.987 0-.131-.008-.323-.023-.577-.015-.253-.037-.553-.068-.906-.088-1.01-.065-1.804.068-2.423.203-.969.786-1.828 1.594-2.367.837-.559 1.899-.855 3.079-.855 1.741 0 3.021.477 3.897 1.478.633.656 1.051 1.61 1.237 2.844l2.474-.296c-.272-1.57-.839-2.88-1.683-3.86-1.285-1.539-3.219-2.35-5.579-2.35-1.18 0-2.242.251-3.079.72-.67.375-1.237.879-1.683 1.478-.446-.599-1.013-1.103-1.683-1.478-.837-.469-1.899-.72-3.079-.72z" />
+    <svg {...props} fill="currentColor" viewBox="0 0 192 192">
+      <path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.7443C82.2364 44.7443 69.7731 51.1409 62.102 62.7807L75.881 72.2328C81.6116 63.5383 90.6052 61.6848 97.2286 61.6848C97.3051 61.6848 97.3819 61.6848 97.4576 61.6855C105.707 61.7381 111.932 64.1366 115.961 68.814C118.893 72.2193 120.854 76.925 121.825 82.8638C114.511 81.6207 106.601 81.2385 98.145 81.7233C74.3247 83.0954 59.0111 96.9879 60.0396 116.292C60.5615 126.084 65.4397 134.508 73.775 140.011C80.8224 144.663 89.899 146.938 99.3323 146.423C111.79 145.74 121.563 140.987 128.381 132.296C133.559 125.696 136.834 117.143 138.28 106.366C144.217 109.949 148.617 114.664 151.047 120.332C155.179 129.967 155.42 145.8 142.501 158.708C131.182 170.016 117.576 174.908 97.0135 175.059C74.2042 174.89 56.9538 167.575 45.7381 153.317C35.2355 139.966 29.8077 120.682 29.6052 96C29.8077 71.3178 35.2355 52.0336 45.7381 38.6827C56.9538 24.4249 74.2039 17.11 97.0132 16.9405C119.988 17.1113 137.539 24.4614 149.184 38.788C154.894 45.8136 159.199 54.6488 162.037 64.9503L178.184 60.6422C174.744 47.9622 169.331 37.0357 161.965 27.974C147.036 9.60668 125.202 0.195148 97.0695 0H96.9569C68.8816 0.19447 47.2921 9.6418 32.7883 28.0793C19.8819 44.4864 13.2244 67.3157 13.0007 95.9325L13 96L13.0007 96.0675C13.2244 124.684 19.8819 147.514 32.7883 163.921C47.2921 182.358 68.8816 191.806 96.9569 192H97.0695C122.03 191.827 139.624 185.292 154.118 170.811C173.081 151.866 172.51 128.119 166.26 113.541C161.776 103.087 153.227 94.5962 141.537 88.9883ZM98.4405 129.507C88.0005 130.095 77.1544 125.409 76.6196 115.372C76.2232 107.93 81.9158 99.626 99.0812 98.6368C101.047 98.5234 102.976 98.468 104.871 98.468C111.106 98.468 116.939 99.0737 122.242 100.233C120.264 124.935 108.662 128.946 98.4405 129.507Z" />
     </svg>
   );
 }
 
-function TikTokIcon(props: React.SVGProps<SVGSVGElement>) {
+function XIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg {...props} fill="currentColor" viewBox="0 0 24 24">
-      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    <svg {...props} fill="currentColor" viewBox="0 0 300 300.251">
+      <path d="M178.57 127.15 290.27 0h-26.46l-97.03 110.38L89.34 0H0l117.13 166.93L0 300.25h26.46l102.4-116.59 81.8 116.59h89.34M36.01 19.54H76.66l187.13 262.13h-40.66"/>
     </svg>
   );
 }

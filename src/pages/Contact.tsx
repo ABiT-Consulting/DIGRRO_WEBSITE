@@ -10,10 +10,38 @@ export default function Contact() {
     service: '',
     message: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
+    setIsSubmitting(true);
+
+    try {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-contact-email`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('Thank you! Your message has been sent successfully. We will get back to you soon.');
+        setFormData({ name: '', email: '', company: '', phone: '', service: '', message: '' });
+      } else {
+        throw new Error(result.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('Sorry, there was an error sending your message. Please try again or contact us directly at info@digrro.com');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -27,7 +55,7 @@ export default function Contact() {
     {
       icon: MapPin,
       title: 'Office Locations',
-      details: ['Riyadh, Saudi Arabia', 'Dubai, UAE', 'Doha, Qatar'],
+      details: ['Riyadh, Saudi Arabia', 'Dubai, UAE', 'Doha, Qatar', 'London, UK', 'Amman, Jordan'],
     },
     {
       icon: Mail,
@@ -174,10 +202,11 @@ export default function Contact() {
 
                   <button
                     type="submit"
-                    className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold text-lg hover:shadow-2xl hover:shadow-cyan-500/50 transition-all inline-flex items-center justify-center space-x-2"
+                    disabled={isSubmitting}
+                    className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold text-lg hover:shadow-2xl hover:shadow-cyan-500/50 transition-all inline-flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <span>Send Message</span>
-                    <Send size={20} />
+                    <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
+                    {!isSubmitting && <Send size={20} />}
                   </button>
                 </form>
               </div>

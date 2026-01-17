@@ -1,9 +1,10 @@
+import { Calendar, Clock } from 'lucide-react';
+
 interface InsightsProps {
   onNavigate: (page: string) => void;
 }
 
 export default function Insights({ onNavigate }: InsightsProps) {
-  void onNavigate;
   return (
     <div className="bg-gray-950 pt-20">
       <section className="relative py-24 overflow-hidden">

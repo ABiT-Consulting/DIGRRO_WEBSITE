@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight } from 'lucide-react';
 
 interface IndustriesProps {
   onNavigate: (page: string) => void;

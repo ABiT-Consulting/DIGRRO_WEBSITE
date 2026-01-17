@@ -41,14 +41,13 @@ export default function AnimatedCounter({ value, duration = 2000 }: AnimatedCoun
       { threshold: 0.5 }
     );
 
-    const currentElement = counterRef.current;
-    if (currentElement) {
-      observer.observe(currentElement);
+    if (counterRef.current) {
+      observer.observe(counterRef.current);
     }
 
     return () => {
-      if (currentElement) {
-        observer.unobserve(currentElement);
+      if (counterRef.current) {
+        observer.unobserve(counterRef.current);
       }
     };
   }, [numericValue, duration, hasAnimated]);

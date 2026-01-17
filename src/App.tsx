@@ -1,5 +1,4 @@
 import Home from './pages/Home';
-import AIAssistant from './components/AIAssistant';
 
 function App() {
   return (
@@ -7,7 +6,6 @@ function App() {
       <main>
         <Home />
       </main>
-      <AIAssistant />
     </div>
   );
 }
