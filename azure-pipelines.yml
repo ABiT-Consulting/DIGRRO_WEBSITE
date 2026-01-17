@@ -11,7 +11,7 @@ pr:
       - master
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Default'   # uses your dev server's default self-hosted agent
 
 variables:
   node_version: '20.x'
