@@ -11,10 +11,12 @@ const command = useNodeRunner
     ? `${packageManager}.cmd`
     : packageManager;
 const argsPrefix = useNodeRunner ? [npmExecPath] : [];
+const useShell = isWindows && !useNodeRunner;
+const spawnOptions = { stdio: 'inherit', shell: useShell };
 
 const scripts = ['dev:client', 'ai:server'];
 const children = scripts.map((script) =>
-  spawn(command, [...argsPrefix, 'run', script], { stdio: 'inherit' }),
+  spawn(command, [...argsPrefix, 'run', script], spawnOptions),
 );
 
 let exiting = false;
