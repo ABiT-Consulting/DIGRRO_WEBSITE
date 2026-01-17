@@ -1,5 +1,3 @@
-import { Calendar, Clock } from 'lucide-react';
-
 interface InsightsProps {
   onNavigate: (page: string) => void;
 }
@@ -48,6 +46,15 @@ export default function Insights({ onNavigate }: InsightsProps) {
             />
             <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-semibold hover:shadow-2xl hover:shadow-cyan-500/50 transition-all whitespace-nowrap">
               Subscribe
+            </button>
+          </div>
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => onNavigate('contact')}
+              className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
+            >
+              Talk to our team
             </button>
           </div>
         </div>

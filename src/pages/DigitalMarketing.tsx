@@ -1,4 +1,4 @@
-import { TrendingUp, ArrowRight, Target, BarChart3, Megaphone, LineChart, SearchCheck, Zap, CheckCircle, Globe, Users2, Rocket } from 'lucide-react';
+import { TrendingUp, ArrowRight, Target, Megaphone, LineChart, SearchCheck, Zap, CheckCircle, Globe, Rocket } from 'lucide-react';
 
 interface DigitalMarketingProps {
   onNavigate: (page: string) => void;

@@ -15,6 +15,11 @@ export default function AnimatedCounter({ value, duration = 2000 }: AnimatedCoun
   const suffix = value.replace(/^\d+/, '');
 
   useEffect(() => {
+    const node = counterRef.current;
+    if (!node) {
+      return undefined;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !hasAnimated && numericValue !== null) {
@@ -41,14 +46,10 @@ export default function AnimatedCounter({ value, duration = 2000 }: AnimatedCoun
       { threshold: 0.5 }
     );
 
-    if (counterRef.current) {
-      observer.observe(counterRef.current);
-    }
+    observer.observe(node);
 
     return () => {
-      if (counterRef.current) {
-        observer.unobserve(counterRef.current);
-      }
+      observer.unobserve(node);
     };
   }, [numericValue, duration, hasAnimated]);
 
