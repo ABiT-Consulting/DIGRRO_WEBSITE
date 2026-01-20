@@ -33,16 +33,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const emailBody = `
-New Contact Form Submission
+${formData.message}
 
+---
+Contact Details:
 Name: ${formData.name}
 Email: ${formData.email}
 ${formData.company ? `Company: ${formData.company}` : ''}
 ${formData.phone ? `Phone: ${formData.phone}` : ''}
 ${formData.service ? `Service: ${formData.service}` : ''}
-
-Message:
-${formData.message}
     `.trim();
 
     const emailHtml = `
@@ -56,27 +55,31 @@ ${formData.message}
     .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
     .field { margin-bottom: 15px; }
     .label { font-weight: bold; color: #0ea5e9; }
-    .message-box { background: white; padding: 20px; border-left: 4px solid #0ea5e9; margin-top: 20px; border-radius: 5px; }
+    .message-box { background: white; padding: 20px; border-left: 4px solid #0ea5e9; margin-bottom: 20px; border-radius: 5px; }
+    .contact-details { background: white; padding: 20px; border-radius: 5px; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1 style="margin: 0;">New Contact Form Submission</h1>
+      <h1 style="margin: 0;">${formData.company || 'New Contact'}</h1>
     </div>
     <div class="content">
-      <div class="field">
-        <span class="label">Name:</span> ${formData.name}
-      </div>
-      <div class="field">
-        <span class="label">Email:</span> ${formData.email}
-      </div>
-      ${formData.company ? `<div class="field"><span class="label">Company:</span> ${formData.company}</div>` : ''}
-      ${formData.phone ? `<div class="field"><span class="label">Phone:</span> ${formData.phone}</div>` : ''}
-      ${formData.service ? `<div class="field"><span class="label">Service:</span> ${formData.service}</div>` : ''}
       <div class="message-box">
-        <div class="label">Message:</div>
+        <div class="label">Project Details:</div>
         <p style="margin-top: 10px; white-space: pre-wrap;">${formData.message}</p>
+      </div>
+      <div class="contact-details">
+        <div class="label" style="margin-bottom: 15px;">Contact Information:</div>
+        <div class="field">
+          <span class="label">Name:</span> ${formData.name}
+        </div>
+        <div class="field">
+          <span class="label">Email:</span> ${formData.email}
+        </div>
+        ${formData.company ? `<div class="field"><span class="label">Company:</span> ${formData.company}</div>` : ''}
+        ${formData.phone ? `<div class="field"><span class="label">Phone:</span> ${formData.phone}</div>` : ''}
+        ${formData.service ? `<div class="field"><span class="label">Service:</span> ${formData.service}</div>` : ''}
       </div>
     </div>
   </div>
@@ -94,7 +97,7 @@ ${formData.message}
         from: "Digrro Contact Form <noreply@digrro.com>",
         to: ["info@digrro.com"],
         reply_to: formData.email,
-        subject: `New Contact Form Submission from ${formData.name}`,
+        subject: formData.company || `Contact from ${formData.name}`,
         text: emailBody,
         html: emailHtml,
       }),
