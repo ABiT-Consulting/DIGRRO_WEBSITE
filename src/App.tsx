@@ -1,3 +1,4 @@
+import WhatsAppButton from './components/WhatsAppButton';
 import Home from './pages/Home';
 
 function App() {
@@ -6,6 +7,7 @@ function App() {
       <main>
         <Home />
       </main>
+      <WhatsAppButton />
     </div>
   );
 }
