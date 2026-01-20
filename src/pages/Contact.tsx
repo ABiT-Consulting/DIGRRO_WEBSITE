@@ -54,7 +54,7 @@ export default function Contact() {
   const contactInfo = [
     {
       icon: MapPin,
-      title: 'Office Locations',
+      title: 'Representative Areas',
       details: ['Riyadh, Saudi Arabia', 'Dubai, UAE', 'Doha, Qatar', 'London, UK', 'Amman, Jordan'],
     },
     {

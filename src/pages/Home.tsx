@@ -677,7 +677,7 @@ export default function Home() {
                     {['BRAND', 'IDENTITY', 'DESIGN', 'SYSTEM'].map((word, index) => (
                       <div
                         key={index}
-                        className="text-5xl font-bold text-gradient-ai opacity-20 tracking-wider"
+                        className="text-5xl font-bold text-white opacity-85 tracking-wider"
                         style={{
                           animationDelay: `${index * 0.2}s`,
                           fontSize: `${60 - index * 5}px`
@@ -1147,7 +1147,7 @@ export default function Home() {
                   <div className="flex items-start space-x-4">
                     <MapPin size={24} className="text-blue-400 flex-shrink-0 mt-1" />
                     <div>
-                      <div className="text-gray-400 text-sm mb-1">Locations</div>
+                      <div className="text-gray-400 text-sm mb-1">Representative Areas</div>
                       <div className="text-white font-semibold">
                         Saudi Arabia • UAE • Qatar • UK • Jordan
                       </div>
@@ -1226,7 +1226,7 @@ export default function Home() {
             </div>
 
             <p className="text-gray-400 text-sm">
-              © 2025 Digrro. Building the Future with AI. All rights reserved.
+              © 2026 Digrro. Building the Future with AI. All rights reserved.
             </p>
           </div>
         </div>
