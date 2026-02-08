@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Brain, TrendingUp, Smartphone, Users, Target, BarChart3, Megaphone, LineChart, SearchCheck, Globe, Rocket, Code, Zap, CheckCircle, Send, ArrowDown, Mail, Phone, MapPin, Sparkles, Network, Cpu, Database, Palette, Layers, Type, Pen, Video, Film, Monitor, Play, Linkedin, Facebook, Instagram } from 'lucide-react';
+import { ArrowRight, Brain, TrendingUp, Smartphone, Users, Target, BarChart3, Megaphone, LineChart, SearchCheck, Globe, Rocket, Code, Zap, CheckCircle, Send, ArrowDown, Mail, Phone, MapPin, Sparkles, Network, Cpu, Database, FileText, Palette, Layers, Type, Pen, Video, Film, Monitor, Play, Linkedin, Facebook, Instagram } from 'lucide-react';
 import AnimatedCounter from '../components/AnimatedCounter';
 import VideoShowreel from '../components/VideoShowreel';
 import { useScrollReveal } from '../hooks/useScrollReveal';
@@ -105,6 +105,12 @@ export default function Home() {
       title: 'Add-On Development',
       description: 'Expert SAP and Odoo add-on development with deep technical expertise and custom modules.',
       gradient: 'from-blue-500 to-indigo-500',
+    },
+    {
+      icon: FileText,
+      title: 'ZATCA E-Invoicing (KSA)',
+      description: 'ZATCA-compliant e-invoice implementation and ERP integration for Saudi Arabia (KSA).',
+      gradient: 'from-emerald-500 to-cyan-500',
     },
     {
       icon: Network,
