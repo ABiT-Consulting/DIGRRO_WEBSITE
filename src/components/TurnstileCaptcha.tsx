@@ -37,8 +37,7 @@ export default function TurnstileCaptcha({ onTokenChange, className = '' }: Turn
 
   return (
     <div className={`rounded-xl border border-gray-700 bg-gray-900/60 p-4 ${className}`} aria-label="Captcha verification">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-300">Basic captcha verification</p>
+      <div className="mb-3 flex items-center justify-end">
         <button
           type="button"
           onClick={resetCaptcha}
