@@ -1,8 +1,9 @@
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 type AuthMode = 'login' | 'signup';
+type OAuthProvider = 'google' | 'facebook';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,8 +17,11 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<OAuthProvider | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const oauthInProgress = useMemo(() => oauthProvider !== null, [oauthProvider]);
 
   if (!isOpen) {
     return null;
@@ -28,7 +32,21 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
     setError('');
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'facebook') => {
+  const getFriendlyAuthError = (authError: unknown) => {
+    const fallback = 'Authentication failed. Please try again.';
+
+    if (authError instanceof Error) {
+      if (authError.message.toLowerCase().includes('provider is not enabled')) {
+        return 'This social login provider is not enabled yet. Enable it in Supabase Authentication > Providers.';
+      }
+
+      return authError.message;
+    }
+
+    return fallback;
+  };
+
+  const handleOAuthSignIn = async (provider: OAuthProvider) => {
     resetFeedback();
 
     if (!supabase) {
@@ -36,35 +54,56 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
       return;
     }
 
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
+    setOauthProvider(provider);
 
-    if (oauthError) {
-      setError(oauthError.message);
+    try {
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) {
+        throw oauthError;
+      }
+
+      if (!data?.url) {
+        throw new Error('Unable to start social login. Check your Supabase OAuth provider configuration and redirect URLs.');
+      }
+
+      window.location.assign(data.url);
+    } catch (authError) {
+      setError(getFriendlyAuthError(authError));
+      setOauthProvider(null);
     }
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     resetFeedback();
+
+    if (!supabase) {
+      setError('Supabase auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.');
+      return;
+    }
+
+    if (mode === 'signup' && fullName.trim().length < 2) {
+      setError('Please enter your full name.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      if (!supabase) {
-        throw new Error('Supabase auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.');
-      }
-
       if (mode === 'signup') {
         const { error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: {
-              full_name: fullName,
+              full_name: fullName.trim(),
             },
           },
         });
@@ -75,7 +114,7 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
 
         setMessage('Signup successful. Please check your email to verify your account.');
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
         if (signInError) {
           throw signInError;
@@ -85,8 +124,7 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
         onClose();
       }
     } catch (authError) {
-      const authMessage = authError instanceof Error ? authError.message : 'Authentication failed. Please try again.';
-      setError(authMessage);
+      setError(getFriendlyAuthError(authError));
     } finally {
       setIsSubmitting(false);
     }
@@ -98,6 +136,7 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h2>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
             aria-label="Close authentication dialog"
@@ -108,6 +147,7 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
 
         <div className="mb-5 grid grid-cols-2 gap-2 rounded-lg bg-gray-800 p-1">
           <button
+            type="button"
             onClick={() => {
               onModeChange('login');
               resetFeedback();
@@ -119,6 +159,7 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
             Login
           </button>
           <button
+            type="button"
             onClick={() => {
               onModeChange('signup');
               resetFeedback();
@@ -133,20 +174,28 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
 
         <div className="space-y-3">
           <button
+            type="button"
             onClick={() => handleOAuthSignIn('google')}
-            disabled={!isSupabaseConfigured}
+            disabled={isSubmitting || oauthInProgress}
             className="w-full rounded-lg border border-gray-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Continue with Google
+            {oauthProvider === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
           </button>
           <button
+            type="button"
             onClick={() => handleOAuthSignIn('facebook')}
-            disabled={!isSupabaseConfigured}
+            disabled={isSubmitting || oauthInProgress}
             className="w-full rounded-lg border border-gray-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Continue with Facebook
+            {oauthProvider === 'facebook' ? 'Redirecting to Facebook...' : 'Continue with Facebook'}
           </button>
         </div>
+
+        {!isSupabaseConfigured && (
+          <p className="mt-3 text-xs text-amber-300">
+            Auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable login and sign-up.
+          </p>
+        )}
 
         <div className="my-5 flex items-center gap-3 text-xs text-gray-500">
           <div className="h-px flex-1 bg-gray-700"></div>
@@ -185,7 +234,7 @@ export default function AuthModal({ isOpen, mode, onClose, onModeChange }: AuthM
 
           <button
             type="submit"
-            disabled={isSubmitting || !isSupabaseConfigured}
+            disabled={isSubmitting || oauthInProgress}
             className="w-full rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Please wait...' : mode === 'login' ? 'Login' : 'Create account'}
