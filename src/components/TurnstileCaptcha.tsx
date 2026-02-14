@@ -1,99 +1,64 @@
-import { useEffect, useRef } from 'react';
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (
-        container: string | HTMLElement,
-        options: {
-          sitekey: string;
-          theme?: 'light' | 'dark' | 'auto';
-          callback?: (token: string) => void;
-          'expired-callback'?: () => void;
-          'error-callback'?: () => void;
-        }
-      ) => string;
-      remove: (widgetId: string) => void;
-    };
-  }
-}
+import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface TurnstileCaptchaProps {
   onTokenChange: (token: string) => void;
   className?: string;
 }
 
-const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
-const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA';
+const getRandomNumber = () => Math.floor(Math.random() * 8) + 2;
 
 export default function TurnstileCaptcha({ onTokenChange, className = '' }: TurnstileCaptchaProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const widgetIdRef = useRef<string | null>(null);
-  const configuredSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
-  const siteKey = configuredSiteKey || TURNSTILE_TEST_SITE_KEY;
+  const [leftNumber, setLeftNumber] = useState(0);
+  const [rightNumber, setRightNumber] = useState(0);
+  const [answer, setAnswer] = useState('');
+
+  const resetCaptcha = useCallback(() => {
+    setLeftNumber(getRandomNumber());
+    setRightNumber(getRandomNumber());
+    setAnswer('');
+    onTokenChange('');
+  }, [onTokenChange]);
 
   useEffect(() => {
-    if (!siteKey || !containerRef.current) {
+    resetCaptcha();
+  }, [resetCaptcha]);
+
+  useEffect(() => {
+    const parsedAnswer = Number.parseInt(answer, 10);
+
+    if (!Number.isNaN(parsedAnswer) && parsedAnswer === leftNumber + rightNumber) {
+      onTokenChange(`${leftNumber}:${rightNumber}:${parsedAnswer}`);
       return;
     }
 
-    const renderWidget = () => {
-      if (!containerRef.current || !window.turnstile) {
-        return;
-      }
+    onTokenChange('');
+  }, [answer, leftNumber, rightNumber, onTokenChange]);
 
-      if (widgetIdRef.current) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
-
-      widgetIdRef.current = window.turnstile.render(containerRef.current, {
-        sitekey: siteKey,
-        theme: 'dark',
-        callback: (token) => onTokenChange(token),
-        'expired-callback': () => onTokenChange(''),
-        'error-callback': () => onTokenChange(''),
-      });
-    };
-
-    const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID) as HTMLScriptElement | null;
-
-    if (window.turnstile) {
-      renderWidget();
-    } else if (existingScript) {
-      existingScript.addEventListener('load', renderWidget);
-      return () => existingScript.removeEventListener('load', renderWidget);
-    } else {
-      const script = document.createElement('script');
-      script.id = TURNSTILE_SCRIPT_ID;
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-      script.async = true;
-      script.defer = true;
-      script.addEventListener('load', renderWidget);
-      document.head.appendChild(script);
-
-      return () => script.removeEventListener('load', renderWidget);
-    }
-
-    return () => {
-      if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
-    };
-  }, [onTokenChange, siteKey]);
-
-  if (!configuredSiteKey) {
-    return (
-      <div className={className}>
-        <div ref={containerRef} aria-label="Captcha verification" />
-        <p className="mt-2 text-sm text-amber-300">
-          Using Cloudflare's test captcha key. Set <code>VITE_TURNSTILE_SITE_KEY</code> for production bot
-          protection.
-        </p>
+  return (
+    <div className={`rounded-xl border border-gray-700 bg-gray-900/60 p-4 ${className}`} aria-label="Captcha verification">
+      <div className="mb-3 flex items-center justify-end">
+        <button
+          type="button"
+          onClick={resetCaptcha}
+          className="inline-flex items-center gap-1 rounded-md border border-gray-600 px-2 py-1 text-xs text-gray-300 transition-colors hover:border-blue-400 hover:text-blue-300"
+        >
+          <RefreshCw size={12} />
+          Refresh
+        </button>
       </div>
-    );
-  }
-
-  return <div ref={containerRef} className={className} aria-label="Captcha verification" />;
+      <label className="block text-sm text-gray-200" htmlFor="basic-captcha-answer">
+        What is <span className="font-bold text-blue-300">{leftNumber} + {rightNumber}</span>?
+      </label>
+      <input
+        id="basic-captcha-answer"
+        type="number"
+        value={answer}
+        onChange={(event) => setAnswer(event.target.value)}
+        className="mt-2 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white placeholder-gray-500 focus:border-blue-400 focus:outline-none"
+        placeholder="Enter the result"
+        inputMode="numeric"
+      />
+    </div>
+  );
 }
