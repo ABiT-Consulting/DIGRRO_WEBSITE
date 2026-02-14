@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 interface ContactFormData {
+  captchaToken: string;
   name: string;
   email: string;
   company?: string;
@@ -14,6 +15,37 @@ interface ContactFormData {
   service?: string;
   message: string;
 }
+
+interface TurnstileVerificationResponse {
+  success: boolean;
+  "error-codes"?: string[];
+}
+
+const verifyCaptcha = async (token: string, ip?: string | null) => {
+  const turnstileSecretKey = Deno.env.get("TURNSTILE_SECRET_KEY");
+
+  if (!turnstileSecretKey) {
+    throw new Error("TURNSTILE_SECRET_KEY is not configured");
+  }
+
+  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      secret: turnstileSecretKey,
+      response: token,
+      ...(ip ? { remoteip: ip } : {}),
+    }),
+  });
+
+  const result: TurnstileVerificationResponse = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error("Captcha verification failed");
+  }
+};
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -25,6 +57,12 @@ Deno.serve(async (req: Request) => {
 
   try {
     const formData: ContactFormData = await req.json();
+
+    if (!formData.captchaToken) {
+      throw new Error("Captcha token is required");
+    }
+
+    await verifyCaptcha(formData.captchaToken, req.headers.get("x-forwarded-for"));
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 

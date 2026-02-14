@@ -1,5 +1,6 @@
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useState } from 'react';
+import TurnstileCaptcha from '../components/TurnstileCaptcha';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -11,9 +12,16 @@ export default function Contact() {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!captchaToken) {
+      alert('Please complete the captcha verification before submitting the form.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -25,7 +33,7 @@ export default function Contact() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, captchaToken }),
       });
 
       const result = await response.json();
@@ -33,6 +41,7 @@ export default function Contact() {
       if (result.success) {
         alert('Thank you! Your message has been sent successfully. We will get back to you soon.');
         setFormData({ name: '', email: '', company: '', phone: '', service: '', message: '' });
+        setCaptchaToken('');
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -200,9 +209,14 @@ export default function Contact() {
                     ></textarea>
                   </div>
 
+                  <TurnstileCaptcha
+                    onTokenChange={setCaptchaToken}
+                    className="pt-2"
+                  />
+
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !captchaToken}
                     className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold text-lg hover:shadow-2xl hover:shadow-cyan-500/50 transition-all inline-flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>

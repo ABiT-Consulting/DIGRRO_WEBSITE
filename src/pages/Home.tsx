@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Brain, TrendingUp, Smartphone, Users, Target, BarChart3, Megaphone, LineChart, SearchCheck, Globe, Rocket, Code, Zap, CheckCircle, Send, ArrowDown, Mail, Phone, MapPin, Sparkles, Network, Cpu, Database, FileText, Palette, Layers, Type, Pen, Video, Film, Monitor, Play, Linkedin, Facebook, Instagram } from 'lucide-react';
 import AnimatedCounter from '../components/AnimatedCounter';
 import VideoShowreel from '../components/VideoShowreel';
+import TurnstileCaptcha from '../components/TurnstileCaptcha';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
 export default function Home() {
@@ -11,6 +12,7 @@ export default function Home() {
     company: '',
     message: '',
   });
+  const [captchaToken, setCaptchaToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const servicesReveal = useScrollReveal();
@@ -20,6 +22,12 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!captchaToken) {
+      alert('Please complete the captcha verification before submitting the form.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -31,7 +39,7 @@ export default function Home() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, captchaToken }),
       });
 
       const result = await response.json();
@@ -39,6 +47,7 @@ export default function Home() {
       if (result.success) {
         alert('Thank you! Your message has been sent successfully. We will get back to you soon.');
         setFormData({ name: '', email: '', company: '', message: '' });
+        setCaptchaToken('');
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -1105,9 +1114,13 @@ export default function Home() {
                   ></textarea>
                   <div className="absolute inset-0 -z-10 bg-blue-500/20 rounded-xl opacity-0 group-focus-within:opacity-100 blur-xl transition-all duration-300"></div>
                 </div>
+                <TurnstileCaptcha
+                  onTokenChange={setCaptchaToken}
+                  className="flex justify-center"
+                />
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !captchaToken}
                   className="relative w-full group px-10 py-5 gradient-ai text-gray-900 rounded-xl font-bold text-xl glow-blue hover:scale-105 transition-all duration-500 flex items-center justify-center space-x-3 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
