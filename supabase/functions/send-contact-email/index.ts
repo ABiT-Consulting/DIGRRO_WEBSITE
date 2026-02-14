@@ -16,33 +16,21 @@ interface ContactFormData {
   message: string;
 }
 
-interface TurnstileVerificationResponse {
-  success: boolean;
-  "error-codes"?: string[];
-}
+const verifyCaptcha = (token: string) => {
+  const [leftRaw, rightRaw, answerRaw] = token.split(":");
+  const left = Number.parseInt(leftRaw, 10);
+  const right = Number.parseInt(rightRaw, 10);
+  const answer = Number.parseInt(answerRaw, 10);
 
-const verifyCaptcha = async (token: string, ip?: string | null) => {
-  const turnstileSecretKey = Deno.env.get("TURNSTILE_SECRET_KEY");
-
-  if (!turnstileSecretKey) {
-    throw new Error("TURNSTILE_SECRET_KEY is not configured");
+  if ([left, right, answer].some((value) => Number.isNaN(value))) {
+    throw new Error("Invalid captcha format");
   }
 
-  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      secret: turnstileSecretKey,
-      response: token,
-      ...(ip ? { remoteip: ip } : {}),
-    }),
-  });
+  if (left < 2 || left > 9 || right < 2 || right > 9) {
+    throw new Error("Invalid captcha challenge");
+  }
 
-  const result: TurnstileVerificationResponse = await response.json();
-
-  if (!response.ok || !result.success) {
+  if (left + right !== answer) {
     throw new Error("Captcha verification failed");
   }
 };
@@ -62,7 +50,7 @@ Deno.serve(async (req: Request) => {
       throw new Error("Captcha token is required");
     }
 
-    await verifyCaptcha(formData.captchaToken, req.headers.get("x-forwarded-for"));
+    verifyCaptcha(formData.captchaToken);
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 

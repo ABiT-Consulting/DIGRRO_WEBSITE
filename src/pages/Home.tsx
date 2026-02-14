@@ -14,6 +14,7 @@ export default function Home() {
   });
   const [captchaToken, setCaptchaToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const servicesReveal = useScrollReveal();
   const statsReveal = useScrollReveal();
@@ -48,6 +49,7 @@ export default function Home() {
         alert('Thank you! Your message has been sent successfully. We will get back to you soon.');
         setFormData({ name: '', email: '', company: '', message: '' });
         setCaptchaToken('');
+        setCaptchaKey((previousKey) => previousKey + 1);
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -1115,6 +1117,7 @@ export default function Home() {
                   <div className="absolute inset-0 -z-10 bg-blue-500/20 rounded-xl opacity-0 group-focus-within:opacity-100 blur-xl transition-all duration-300"></div>
                 </div>
                 <TurnstileCaptcha
+                  key={captchaKey}
                   onTokenChange={setCaptchaToken}
                   className="flex justify-center"
                 />
