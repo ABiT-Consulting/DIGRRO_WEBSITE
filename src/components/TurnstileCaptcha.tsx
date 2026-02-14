@@ -24,11 +24,13 @@ interface TurnstileCaptchaProps {
 }
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
+const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA';
 
 export default function TurnstileCaptcha({ onTokenChange, className = '' }: TurnstileCaptchaProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+  const configuredSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+  const siteKey = configuredSiteKey || TURNSTILE_TEST_SITE_KEY;
 
   useEffect(() => {
     if (!siteKey || !containerRef.current) {
@@ -81,11 +83,15 @@ export default function TurnstileCaptcha({ onTokenChange, className = '' }: Turn
     };
   }, [onTokenChange, siteKey]);
 
-  if (!siteKey) {
+  if (!configuredSiteKey) {
     return (
-      <p className={`text-sm text-amber-300 ${className}`}>
-        Captcha is disabled. Set <code>VITE_TURNSTILE_SITE_KEY</code> to enable bot protection.
-      </p>
+      <div className={className}>
+        <div ref={containerRef} aria-label="Captcha verification" />
+        <p className="mt-2 text-sm text-amber-300">
+          Using Cloudflare's test captcha key. Set <code>VITE_TURNSTILE_SITE_KEY</code> for production bot
+          protection.
+        </p>
+      </div>
     );
   }
 
