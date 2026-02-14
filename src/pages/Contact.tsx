@@ -12,6 +12,7 @@ export default function Contact() {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaKey, setCaptchaKey] = useState(0);
   const [captchaToken, setCaptchaToken] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,6 +43,7 @@ export default function Contact() {
         alert('Thank you! Your message has been sent successfully. We will get back to you soon.');
         setFormData({ name: '', email: '', company: '', phone: '', service: '', message: '' });
         setCaptchaToken('');
+        setCaptchaKey((previousKey) => previousKey + 1);
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -210,6 +212,7 @@ export default function Contact() {
                   </div>
 
                   <TurnstileCaptcha
+                    key={captchaKey}
                     onTokenChange={setCaptchaToken}
                     className="pt-2"
                   />
