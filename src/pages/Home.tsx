@@ -279,13 +279,6 @@ export default function Home() {
             <img src="/image_fc91df1d-53b0-439b-9c3e-c444469fda79-removebg-preview copy copy copy.png" alt="Digrro" className="h-16 mx-auto mb-12 opacity-90" />
           </div>
 
-          <div
-            className="inline-block mb-10 px-6 py-3 bg-blue-500/10 rounded-full border border-blue-500/30 backdrop-blur-sm"
-            style={{ animation: 'hero-entrance 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards' }}
-          >
-            <span className="text-blue-400 text-sm font-semibold tracking-wide uppercase">AI-Powered Solutions for the Future</span>
-          </div>
-
           <h1
             className="relative text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-12 leading-[1.05] tracking-tight"
             style={{ animation: 'hero-entrance 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s backwards' }}
