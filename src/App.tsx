@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import AuthModal from './components/AuthModal';
 import WhatsAppButton from './components/WhatsAppButton';
-import { isSupabaseConfigured, supabase } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import Home from './pages/Home';
 
 type AuthMode = 'login' | 'signup';
@@ -55,30 +55,7 @@ function App() {
                 Logout
               </button>
             </>
-          ) : (
-            <>
-              {!isSupabaseConfigured && <span className="hidden text-xs text-amber-300 sm:block">Auth requires Supabase env vars</span>}
-
-              <button
-                onClick={() => {
-                  setAuthMode('login');
-                  setIsAuthModalOpen(true);
-                }}
-                className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-              >
-                Login
-              </button>
-              <button
-                onClick={() => {
-                  setAuthMode('signup');
-                  setIsAuthModalOpen(true);
-                }}
-                className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-              >
-                Sign Up
-              </button>
-            </>
-          )}
+          ) : null}
         </div>
       </header>
 
