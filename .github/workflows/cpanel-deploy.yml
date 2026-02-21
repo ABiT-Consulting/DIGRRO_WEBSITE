@@ -42,19 +42,36 @@ jobs:
             exit 1
           fi
 
+          repo_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           publish_dir="$(mktemp -d)"
+
+          if git ls-remote --exit-code --heads "$repo_url" "${DEPLOY_BRANCH}" >/dev/null 2>&1; then
+            git clone --depth 1 --branch "${DEPLOY_BRANCH}" "$repo_url" "$publish_dir"
+          else
+            git clone --depth 1 "$repo_url" "$publish_dir"
+            pushd "$publish_dir" >/dev/null
+            git checkout --orphan "${DEPLOY_BRANCH}"
+            git rm -rf . >/dev/null 2>&1 || true
+            popd >/dev/null
+          fi
+
+          find "$publish_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+
           /bin/cp .cpanel.yml "${publish_dir}/.cpanel.yml"
           /bin/mkdir -p "${publish_dir}/dist"
           /bin/cp -a ./dist/. "${publish_dir}/dist/"
 
           pushd "${publish_dir}" >/dev/null
-          git init -b "${DEPLOY_BRANCH}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Deploy ${GITHUB_SHA}"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin "${DEPLOY_BRANCH}"
+
+          if git diff --cached --quiet; then
+            echo "No deployment changes to commit on ${DEPLOY_BRANCH}."
+          else
+            git commit -m "Deploy ${GITHUB_SHA}"
+            git push origin "${DEPLOY_BRANCH}"
+          fi
           popd >/dev/null
 
   deploy:
@@ -194,6 +211,11 @@ jobs:
           did_update=1
           if ! jq_status_or_error "$update_resp" "VersionControl/update"; then
             did_update=0
+            update_errors="$(jq -r '((.result // .).errors // []) | join(" | ")' "$update_resp" 2>/dev/null || true)"
+            if [[ "${update_errors}" == *"Not possible to fast-forward"* || "${update_errors}" == *"Diverging branches"* ]]; then
+              echo "::error::cPanel repository is diverged from origin/${branch}. Recreate the cPanel Git repository or hard-reset it to origin/${branch}, then rerun workflow."
+              exit 1
+            fi
           fi
 
           if (( did_update )); then
