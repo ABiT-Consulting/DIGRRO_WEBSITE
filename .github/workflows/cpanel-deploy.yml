@@ -201,30 +201,55 @@ jobs:
             return 0
           }
 
-          echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
+          cpanel_update_repo() {
+            local out="$1"
+            echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
+            cpanel_get "VersionControl/update" "$out" \
+              "repository_root=${CPANEL_REPO_ROOT}" \
+              "branch=${branch}"
+            jq_ok_or_dump "$out"
+            jq . "$out"
+          }
+
           update_resp="$(mktemp)"
-          cpanel_get "VersionControl/update" "$update_resp" \
-            "repository_root=${CPANEL_REPO_ROOT}" \
-            "branch=${branch}"
-          jq_ok_or_dump "$update_resp"
-          jq . "$update_resp"
-          did_update=1
+          cpanel_update_repo "$update_resp"
           if ! jq_status_or_error "$update_resp" "VersionControl/update"; then
-            did_update=0
             update_errors="$(jq -r '((.result // .).errors // []) | join(" | ")' "$update_resp" 2>/dev/null || true)"
             if [[ "${update_errors}" == *"Not possible to fast-forward"* || "${update_errors}" == *"Diverging branches"* ]]; then
-              echo "::error::cPanel repository is diverged from origin/${branch}. Recreate the cPanel Git repository or hard-reset it to origin/${branch}, then rerun workflow."
+              echo "cPanel repo diverged. Attempting one-time auto-recreate: ${CPANEL_REPO_ROOT}"
+
+              delete_resp="$(mktemp)"
+              cpanel_get "VersionControl/delete" "$delete_resp" \
+                "repository_root=${CPANEL_REPO_ROOT}"
+              jq_ok_or_dump "$delete_resp"
+              jq . "$delete_resp"
+              jq_status_or_error "$delete_resp" "VersionControl/delete" || true
+
+              repo_name="$(basename "$CPANEL_REPO_ROOT")"
+              source_repo_json="$(jq -cn --arg url "https://github.com/${GITHUB_REPOSITORY}.git" '{remote_name:"origin",url:$url}')"
+              create_repo_resp="$(mktemp)"
+              cpanel_get "VersionControl/create" "$create_repo_resp" \
+                "name=${repo_name}" \
+                "repository_root=${CPANEL_REPO_ROOT}" \
+                "type=git" \
+                "source_repository=${source_repo_json}"
+              jq_ok_or_dump "$create_repo_resp"
+              jq . "$create_repo_resp"
+              jq_status_or_error "$create_repo_resp" "VersionControl/create"
+
+              update_resp="$(mktemp)"
+              cpanel_update_repo "$update_resp"
+              jq_status_or_error "$update_resp" "VersionControl/update"
+            else
               exit 1
             fi
           fi
 
-          if (( did_update )); then
-            deployable="$(jq -r '(.result // .).data.deployable // 0' "$update_resp")"
-            deployable_reason="$(jq -r '(.result // .).data.deployable_reason // empty' "$update_resp")"
-            if [[ "$deployable" != "1" ]]; then
-              echo "::error::Repository is not deployable. ${deployable_reason}"
-              exit 1
-            fi
+          deployable="$(jq -r '(.result // .).data.deployable // 0' "$update_resp")"
+          deployable_reason="$(jq -r '(.result // .).data.deployable_reason // empty' "$update_resp")"
+          if [[ "$deployable" != "1" ]]; then
+            echo "::error::Repository is not deployable. ${deployable_reason}"
+            exit 1
           fi
 
           echo "Triggering cPanel deploy for repo: ${CPANEL_REPO_ROOT}"
