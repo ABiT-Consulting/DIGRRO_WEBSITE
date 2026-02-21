@@ -100,8 +100,23 @@ jobs:
           port="${CPANEL_PORT:-2083}"
           branch="${CPANEL_BRANCH:-cpanel-deploy}"
           base="https://${CPANEL_HOST}:${port}"
-          active_repo_root="${CPANEL_REPO_ROOT}"
-          fallback_repo_root="${CPANEL_REPO_ROOT_FALLBACK:-${CPANEL_REPO_ROOT}_auto}"
+
+          active_repo_root="${CPANEL_REPO_ROOT//$'\r'/}"
+          active_repo_root="${active_repo_root#"${active_repo_root%%[![:space:]]*}"}"
+          active_repo_root="${active_repo_root%"${active_repo_root##*[![:space:]]}"}"
+          active_repo_root="${active_repo_root%\"}"
+          active_repo_root="${active_repo_root#\"}"
+          active_repo_root="${active_repo_root%\'}"
+          active_repo_root="${active_repo_root#\'}"
+
+          fallback_repo_root="${CPANEL_REPO_ROOT_FALLBACK:-${active_repo_root}_auto}"
+          fallback_repo_root="${fallback_repo_root//$'\r'/}"
+          fallback_repo_root="${fallback_repo_root#"${fallback_repo_root%%[![:space:]]*}"}"
+          fallback_repo_root="${fallback_repo_root%"${fallback_repo_root##*[![:space:]]}"}"
+          fallback_repo_root="${fallback_repo_root%\"}"
+          fallback_repo_root="${fallback_repo_root#\"}"
+          fallback_repo_root="${fallback_repo_root%\'}"
+          fallback_repo_root="${fallback_repo_root#\'}"
 
           auth_header="Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}"
           curl_flags=(-sS)
@@ -236,6 +251,7 @@ jobs:
           cpanel_update_repo "$active_repo_root" "$update_resp"
           if ! jq_status_or_error "$update_resp" "VersionControl/update"; then
             update_errors="$(jq -r '((.result // .).errors // []) | join(" | ")' "$update_resp" 2>/dev/null || true)"
+            update_errors_lc="$(echo "$update_errors" | tr '[:upper:]' '[:lower:]')"
             if [[ "${update_errors}" == *"Not possible to fast-forward"* || "${update_errors}" == *"Diverging branches"* ]]; then
               echo "cPanel repo diverged. Attempting one-time auto-recreate: ${active_repo_root}"
 
@@ -262,6 +278,25 @@ jobs:
                   fi
                 else
                   exit 1
+                fi
+              fi
+
+              update_resp="$(mktemp)"
+              cpanel_update_repo "$active_repo_root" "$update_resp"
+              jq_status_or_error "$update_resp" "VersionControl/update"
+            elif [[ "${update_errors_lc}" == *"not a valid"* && "${update_errors_lc}" == *"repository_root"* ]]; then
+              echo "Repository root invalid in cPanel update response. Trying create/update with active path, then fallback."
+
+              create_repo_resp="$(mktemp)"
+              cpanel_create_repo "$active_repo_root" "$create_repo_resp" || true
+              if ! jq_status_or_error "$create_repo_resp" "VersionControl/create"; then
+                echo "Create on active path did not succeed."
+                if [[ "${fallback_repo_root}" != "${active_repo_root}" ]]; then
+                  echo "Switching to fallback repo path: ${fallback_repo_root}"
+                  active_repo_root="${fallback_repo_root}"
+                  create_repo_resp="$(mktemp)"
+                  cpanel_create_repo "$active_repo_root" "$create_repo_resp" || true
+                  jq_status_or_error "$create_repo_resp" "VersionControl/create" || true
                 fi
               fi
 
