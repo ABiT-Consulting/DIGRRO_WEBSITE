@@ -6,8 +6,59 @@ on:
       - main
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
+  build_deploy_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build site
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+
+      - name: Publish dist to cpanel-deploy branch
+        shell: bash
+        env:
+          DEPLOY_BRANCH: cpanel-deploy
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! -d dist ]]; then
+            echo "::error::dist directory not found after build."
+            exit 1
+          fi
+
+          publish_dir="$(mktemp -d)"
+          /bin/cp .cpanel.yml "${publish_dir}/.cpanel.yml"
+          /bin/mkdir -p "${publish_dir}/dist"
+          /bin/cp -a ./dist/. "${publish_dir}/dist/"
+
+          pushd "${publish_dir}" >/dev/null
+          git init -b "${DEPLOY_BRANCH}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin "${DEPLOY_BRANCH}"
+          popd >/dev/null
+
   deploy:
+    needs: build_deploy_branch
     runs-on: ubuntu-latest
     steps:
       - name: Trigger cPanel deployment and wait
@@ -18,9 +69,7 @@ jobs:
           CPANEL_USER: ${{ secrets.CPANEL_USER }}
           CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
           CPANEL_REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
-          # Optional. Defaults to "main".
-          CPANEL_BRANCH: ${{ secrets.CPANEL_BRANCH }}
-          # Set to "true" only if your cPanel TLS cert/hostname causes curl SSL errors.
+          CPANEL_BRANCH: cpanel-deploy
           CPANEL_INSECURE: ${{ secrets.CPANEL_INSECURE }}
         run: |
           set -euo pipefail
@@ -31,7 +80,7 @@ jobs:
           : "${CPANEL_REPO_ROOT:?Missing secret CPANEL_REPO_ROOT (absolute path to the cPanel git repo)}"
 
           port="${CPANEL_PORT:-2083}"
-          branch="${CPANEL_BRANCH:-main}"
+          branch="${CPANEL_BRANCH:-cpanel-deploy}"
           base="https://${CPANEL_HOST}:${port}"
 
           auth_header="Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}"
@@ -102,20 +151,15 @@ jobs:
           jq_status_or_error() {
             local file="$1"
             local endpoint="$2"
-            # cPanel UAPI responses can be either wrapped:
-            #   {"apiversion":3,"module":"...","func":"...","result":{...}}
-            # or unwrapped (just the inner result object). Handle both.
             if ! jq -e '((.result // .).status // 0) == 1' "$file" >/dev/null 2>&1; then
               echo "::error::${endpoint} returned status != 1"
 
-              # Include a compact excerpt of the raw JSON response (useful when .result.* keys are missing).
               raw="$(jq -c '.' "$file" 2>/dev/null || true)"
               if [[ -n "${raw:-}" && "${raw:-null}" != "null" ]]; then
                 raw="${raw:0:1500}"
                 echo "::error::Response(excerpt): ${raw}"
               fi
 
-              # cPanel often returns useful context in metadata.reason even when errors/messages are empty.
               meta="$(jq -c '(.result // .).metadata // {}' "$file" 2>/dev/null || true)"
               if [[ -n "${meta:-}" && "${meta:-null}" != "null" && "${meta:-}" != "{}" ]]; then
                 echo "::error::Metadata: ${meta}"
@@ -149,7 +193,6 @@ jobs:
           jq . "$update_resp"
           did_update=1
           if ! jq_status_or_error "$update_resp" "VersionControl/update"; then
-            # Some cPanel setups disallow this call; deployment may still work via VersionControlDeployment/create.
             did_update=0
           fi
 
@@ -180,7 +223,6 @@ jobs:
           echo "Deployment queued: deploy_id=${deploy_id}"
           echo "Deployment log path: ${log_path}"
 
-          # Poll deployment status until success/failure.
           deadline=$((SECONDS + 300))
           while true; do
             retrieve_resp="$(mktemp)"
@@ -209,7 +251,6 @@ jobs:
                 echo "cPanel deploy: failed (deploy_id=${deploy_id})"
                 echo "Deployment log path: ${log_path}"
 
-                # Best effort: fetch and print the deployment log.
                 if [[ -n "$log_path" && "$log_path" != "null" ]]; then
                   log_dir="$(dirname "$log_path")"
                   log_file="$(basename "$log_path")"

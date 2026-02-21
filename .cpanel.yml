@@ -1,10 +1,8 @@
 # cPanel Git deployment config
-# Build and deploy the production bundle to public_html
----
+# Deploy the production build from ./dist
 deployment:
   tasks:
-    - /usr/bin/env npm ci
-    - /usr/bin/env npm run build
-    - /bin/mkdir -p "$HOME/public_html/"
-    - /bin/rm -rf "$HOME/public_html/"*
-    - /bin/cp -a ./dist/. "$HOME/public_html/"
+    - export DEPLOYPATH="${HOME}/public_html/"
+    - /bin/mkdir -p "$DEPLOYPATH"
+    - /bin/rm -rf "$DEPLOYPATH"/*
+    - /bin/cp -a ./dist/. "$DEPLOYPATH"
