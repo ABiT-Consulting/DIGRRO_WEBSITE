@@ -86,6 +86,7 @@ jobs:
           CPANEL_USER: ${{ secrets.CPANEL_USER }}
           CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
           CPANEL_REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
+          CPANEL_REPO_ROOT_FALLBACK: ${{ secrets.CPANEL_REPO_ROOT_FALLBACK }}
           CPANEL_BRANCH: cpanel-deploy
           CPANEL_INSECURE: ${{ secrets.CPANEL_INSECURE }}
         run: |
@@ -99,6 +100,8 @@ jobs:
           port="${CPANEL_PORT:-2083}"
           branch="${CPANEL_BRANCH:-cpanel-deploy}"
           base="https://${CPANEL_HOST}:${port}"
+          active_repo_root="${CPANEL_REPO_ROOT}"
+          fallback_repo_root="${CPANEL_REPO_ROOT_FALLBACK:-${CPANEL_REPO_ROOT}_auto}"
 
           auth_header="Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}"
           curl_flags=(-sS)
@@ -202,43 +205,68 @@ jobs:
           }
 
           cpanel_update_repo() {
-            local out="$1"
-            echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
+            local repo_root="$1"
+            local out="$2"
+            echo "Updating cPanel repo (branch=${branch}): ${repo_root}"
             cpanel_get "VersionControl/update" "$out" \
-              "repository_root=${CPANEL_REPO_ROOT}" \
+              "repository_root=${repo_root}" \
               "branch=${branch}"
             jq_ok_or_dump "$out"
             jq . "$out"
           }
 
+          cpanel_create_repo() {
+            local repo_root="$1"
+            local out="$2"
+            local repo_name
+            repo_name="$(basename "$repo_root")"
+            local source_repo_json
+            source_repo_json="$(jq -cn --arg url "https://github.com/${GITHUB_REPOSITORY}.git" '{remote_name:"origin",url:$url}')"
+
+            cpanel_get "VersionControl/create" "$out" \
+              "name=${repo_name}" \
+              "repository_root=${repo_root}" \
+              "type=git" \
+              "source_repository=${source_repo_json}"
+            jq_ok_or_dump "$out"
+            jq . "$out"
+          }
+
           update_resp="$(mktemp)"
-          cpanel_update_repo "$update_resp"
+          cpanel_update_repo "$active_repo_root" "$update_resp"
           if ! jq_status_or_error "$update_resp" "VersionControl/update"; then
             update_errors="$(jq -r '((.result // .).errors // []) | join(" | ")' "$update_resp" 2>/dev/null || true)"
             if [[ "${update_errors}" == *"Not possible to fast-forward"* || "${update_errors}" == *"Diverging branches"* ]]; then
-              echo "cPanel repo diverged. Attempting one-time auto-recreate: ${CPANEL_REPO_ROOT}"
+              echo "cPanel repo diverged. Attempting one-time auto-recreate: ${active_repo_root}"
 
               delete_resp="$(mktemp)"
               cpanel_get "VersionControl/delete" "$delete_resp" \
-                "repository_root=${CPANEL_REPO_ROOT}"
+                "repository_root=${active_repo_root}"
               jq_ok_or_dump "$delete_resp"
               jq . "$delete_resp"
               jq_status_or_error "$delete_resp" "VersionControl/delete" || true
 
-              repo_name="$(basename "$CPANEL_REPO_ROOT")"
-              source_repo_json="$(jq -cn --arg url "https://github.com/${GITHUB_REPOSITORY}.git" '{remote_name:"origin",url:$url}')"
               create_repo_resp="$(mktemp)"
-              cpanel_get "VersionControl/create" "$create_repo_resp" \
-                "name=${repo_name}" \
-                "repository_root=${CPANEL_REPO_ROOT}" \
-                "type=git" \
-                "source_repository=${source_repo_json}"
-              jq_ok_or_dump "$create_repo_resp"
-              jq . "$create_repo_resp"
-              jq_status_or_error "$create_repo_resp" "VersionControl/create"
+              cpanel_create_repo "$active_repo_root" "$create_repo_resp" || true
+
+              if ! jq_status_or_error "$create_repo_resp" "VersionControl/create"; then
+                create_errors="$(jq -r '((.result // .).errors // []) | join(" | ")' "$create_repo_resp" 2>/dev/null || true)"
+                if [[ "${create_errors}" == *"already contains files"* && "${fallback_repo_root}" != "${active_repo_root}" ]]; then
+                  echo "Primary repo path still has files. Using fallback repo path: ${fallback_repo_root}"
+                  active_repo_root="${fallback_repo_root}"
+
+                  create_repo_resp="$(mktemp)"
+                  cpanel_create_repo "$active_repo_root" "$create_repo_resp" || true
+                  if ! jq_status_or_error "$create_repo_resp" "VersionControl/create"; then
+                    echo "Fallback create did not succeed; trying update on fallback in case repo already exists."
+                  fi
+                else
+                  exit 1
+                fi
+              fi
 
               update_resp="$(mktemp)"
-              cpanel_update_repo "$update_resp"
+              cpanel_update_repo "$active_repo_root" "$update_resp"
               jq_status_or_error "$update_resp" "VersionControl/update"
             else
               exit 1
@@ -252,10 +280,10 @@ jobs:
             exit 1
           fi
 
-          echo "Triggering cPanel deploy for repo: ${CPANEL_REPO_ROOT}"
+          echo "Triggering cPanel deploy for repo: ${active_repo_root}"
           create_resp="$(mktemp)"
           cpanel_get "VersionControlDeployment/create" "$create_resp" \
-            "repository_root=${CPANEL_REPO_ROOT}"
+            "repository_root=${active_repo_root}"
           jq_ok_or_dump "$create_resp"
           jq . "$create_resp"
           jq_status_or_error "$create_resp" "VersionControlDeployment/create"
