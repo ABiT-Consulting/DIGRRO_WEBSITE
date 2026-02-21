@@ -2,7 +2,7 @@
 # Deploy the production build from ./dist
 deployment:
   tasks:
-    - export DEPLOYPATH="${HOME}/public_html/"
+    - if [ -d "${HOME}/public_html/digrro.com" ]; then export DEPLOYPATH="${HOME}/public_html/digrro.com/"; elif [ -d "${HOME}/digrro.com" ]; then export DEPLOYPATH="${HOME}/digrro.com/"; elif [ -d "${HOME}/public_html/digrro" ]; then export DEPLOYPATH="${HOME}/public_html/digrro/"; else export DEPLOYPATH="${HOME}/public_html/"; fi
     - /bin/mkdir -p "$DEPLOYPATH"
     - /bin/rm -rf "$DEPLOYPATH"/*
     - /bin/cp -a ./dist/. "$DEPLOYPATH"
