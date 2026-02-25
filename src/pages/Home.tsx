@@ -20,6 +20,7 @@ export default function Home() {
   const statsReveal = useScrollReveal();
   const aiSolutionsReveal = useScrollReveal();
   const processReveal = useScrollReveal();
+  const caseStudyReveal = useScrollReveal();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +190,63 @@ export default function Home() {
     { name: 'Healthcare & Medical', icon: Target },
     { name: 'Finance & Banking', icon: BarChart3 },
     { name: 'E-commerce & Retail', icon: Globe },
+  ];
+
+  const caseStudyChallenges = [
+    'Booking confirmations depended on fragmented email and spreadsheet handoffs, creating avoidable processing delays.',
+    'Vendor coordination lacked a single workflow, causing rate, availability, and fulfillment updates to drift across teams.',
+    'Finance teams reconciled bookings, supplier invoices, and customer receipts manually, delaying period-end closure and review.',
+    'Leadership reporting was retrospective and slow, limiting timely interventions on demand shifts and margin leakage.',
+  ];
+
+  const caseStudyImplementation = [
+    'Implemented ERPNext as a centralized platform for inquiry-to-booking, fulfillment, and billing lifecycle control.',
+    'Designed booking workflow automation with status-driven transitions, approval checkpoints, and exception routing.',
+    'Built a vendor coordination module for onboarding, SLA tracking, allocation monitoring, and communication traceability.',
+    'Integrated accounting flows for receivables, payables, tax configuration, and event-based financial posting.',
+    'Automated financial reconciliation with rule-based matching across booking references, vendor invoices, and payments.',
+    'Enabled role-specific real-time dashboards for operations, finance, and management teams.',
+  ];
+
+  const caseStudyArchitecture = [
+    {
+      icon: Network,
+      title: 'Process Orchestration Layer',
+      description: 'Booking desks and operations teams execute standardized ERPNext workflows with governed transitions and approvals.',
+    },
+    {
+      icon: Database,
+      title: 'Core ERP Data Layer',
+      description: 'ERPNext acts as the system of record for bookings, vendors, transactions, and operational status history.',
+    },
+    {
+      icon: BarChart3,
+      title: 'Finance Control Layer',
+      description: 'Integrated accounting automates posting, reconciliation, and financial traceability across service delivery events.',
+    },
+    {
+      icon: Brain,
+      title: 'AI Insight Layer',
+      description: 'AI services produce data summaries, demand forecasting, and variance insights to support faster decisions.',
+    },
+  ];
+
+  const caseStudyTimeline = [
+    { week: 'Week 1', title: 'Discovery & Baseline', detail: 'Process diagnostics, KPI baselining, and data-readiness assessment.' },
+    { week: 'Week 2', title: 'Solution Design', detail: 'Target operating model, ERPNext blueprinting, and control framework definition.' },
+    { week: 'Week 3', title: 'Booking Automation Build', detail: 'Workflow states, approval matrix, and exception-handling logic configuration.' },
+    { week: 'Week 4', title: 'Vendor Module Delivery', detail: 'Vendor lifecycle management, SLA controls, and fulfillment tracking setup.' },
+    { week: 'Week 5', title: 'Accounting Integration', detail: 'Posting rules, chart mappings, reconciliation policies, and financial controls.' },
+    { week: 'Week 6', title: 'AI Reporting Enablement', detail: 'Automated data summarization, forecasting pipelines, and insight templates.' },
+    { week: 'Week 7', title: 'UAT & Capability Transfer', detail: 'Scenario testing, role validation, and business-user training execution.' },
+    { week: 'Week 8', title: 'Go-Live & Stabilization', detail: 'Production launch, hypercare monitoring, and post-deployment governance.' },
+  ];
+
+  const caseStudyOutcomes = [
+    { metric: '41%', label: 'Reduction in booking process delays from inquiry to confirmation' },
+    { metric: '82%', label: 'Faster reconciliation across bookings, invoices, and payments' },
+    { metric: '64%', label: 'Operational tasks shifted from manual handling to workflow automation' },
+    { metric: '55%', label: 'Improvement in reporting turnaround using AI-assisted analysis' },
   ];
 
   return (
@@ -1030,6 +1088,157 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="case-study" className="py-40 bg-gray-800 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-1/3 w-[560px] h-[560px] bg-blue-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-1/4 w-[520px] h-[520px] bg-cyan-500/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
+          <div
+            ref={caseStudyReveal.ref}
+            className={`text-center mb-16 transition-all duration-1000 ${
+              caseStudyReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+            }`}
+          >
+            <div className="inline-flex items-center px-4 py-2 bg-blue-500/10 border border-blue-400/30 rounded-full mb-8">
+              <span className="text-blue-300 text-sm font-semibold uppercase tracking-wider">Enterprise ERP Case Study</span>
+            </div>
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-8 leading-tight">
+              Alphastart Tourism:
+              <br />
+              <span className="text-gradient-ai">ERPNext Modernization with AI-Enhanced Operations</span>
+            </h2>
+            <p className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
+              DIGRRO implemented ERPNext for Alphastart Tourism to unify booking operations, vendor coordination, finance,
+              and AI-assisted decision support inside one controlled enterprise platform.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
+            <div className="bg-gray-900/80 border border-gray-700 rounded-2xl p-6">
+              <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Client</p>
+              <p className="text-white text-xl font-semibold">Alphastart Tourism</p>
+            </div>
+            <div className="bg-gray-900/80 border border-gray-700 rounded-2xl p-6">
+              <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Industry</p>
+              <p className="text-white text-xl font-semibold">Travel & Tourism</p>
+            </div>
+            <div className="bg-gray-900/80 border border-gray-700 rounded-2xl p-6">
+              <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Program Scope</p>
+              <p className="text-white text-xl font-semibold">Booking, Vendor Ops, Finance, AI Reporting</p>
+            </div>
+            <div className="bg-gray-900/80 border border-gray-700 rounded-2xl p-6">
+              <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Deployment Window</p>
+              <p className="text-white text-xl font-semibold">8 Weeks</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-14">
+            <div className="bg-gray-900 border border-gray-700 rounded-3xl p-8">
+              <h3 className="text-2xl font-bold text-white mb-6">Operational Inefficiencies Before ERP</h3>
+              <ul className="space-y-4">
+                {caseStudyChallenges.map((challenge, index) => (
+                  <li key={index} className="text-gray-300 leading-relaxed flex items-start gap-3">
+                    <CheckCircle size={20} className="text-blue-400 mt-1 flex-shrink-0" />
+                    <span>{challenge}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-gray-900 border border-gray-700 rounded-3xl p-8">
+              <h3 className="text-2xl font-bold text-white mb-6">Technical Implementation Approach</h3>
+              <ul className="space-y-4">
+                {caseStudyImplementation.map((item, index) => (
+                  <li key={index} className="text-gray-300 leading-relaxed flex items-start gap-3">
+                    <Zap size={20} className="text-cyan-400 mt-1 flex-shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mb-14 bg-gray-900 border border-gray-700 rounded-3xl p-8">
+            <h3 className="text-3xl font-bold text-white mb-6 text-center">AI Capability Enablement</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+                <h4 className="text-xl font-semibold text-white mb-3">Data Summarization</h4>
+                <p className="text-gray-300 leading-relaxed">
+                  AI-generated operational summaries consolidate booking load, vendor performance, and financial variance into
+                  concise daily and weekly management briefs.
+                </p>
+              </div>
+              <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+                <h4 className="text-xl font-semibold text-white mb-3">Demand Forecasting</h4>
+                <p className="text-gray-300 leading-relaxed">
+                  Forecast models use seasonality and booking trends to project demand, helping teams adjust supplier capacity
+                  and pricing decisions earlier.
+                </p>
+              </div>
+              <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+                <h4 className="text-xl font-semibold text-white mb-3">Actionable Insights</h4>
+                <p className="text-gray-300 leading-relaxed">
+                  Insight signals surface anomalies in margins, delays, and reconciliation exceptions so teams can intervene
+                  before issues compound.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-14">
+            <h3 className="text-3xl font-bold text-white mb-8 text-center">System Architecture Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {caseStudyArchitecture.map((layer, index) => (
+                <div key={index} className="bg-gray-900 border border-gray-700 rounded-2xl p-7">
+                  <div className="inline-flex p-4 gradient-ai rounded-xl mb-5">
+                    <layer.icon size={24} className="text-gray-900" />
+                  </div>
+                  <h4 className="text-white text-xl font-semibold mb-3">{layer.title}</h4>
+                  <p className="text-gray-400 leading-relaxed">{layer.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-14">
+            <h3 className="text-3xl font-bold text-white mb-8 text-center">Implementation Phases and Deployment Timeline (8 Weeks)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {caseStudyTimeline.map((phase, index) => (
+                <div key={index} className="bg-gray-900 border border-gray-700 rounded-2xl p-7">
+                  <p className="text-blue-300 font-semibold uppercase tracking-wider text-sm mb-3">{phase.week}</p>
+                  <h4 className="text-white text-xl font-semibold mb-3">{phase.title}</h4>
+                  <p className="text-gray-400 leading-relaxed">{phase.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-14">
+            <h3 className="text-3xl font-bold text-white mb-8 text-center">Measured Business Improvements</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {caseStudyOutcomes.map((outcome, index) => (
+                <div key={index} className="bg-gray-900 border border-gray-700 rounded-2xl p-7 text-center">
+                  <p className="text-4xl md:text-5xl font-bold text-gradient-ai mb-3">{outcome.metric}</p>
+                  <p className="text-gray-300 leading-relaxed">{outcome.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gray-900 border border-blue-500/30 rounded-3xl p-10 text-center">
+            <h3 className="text-3xl font-bold text-white mb-5">Strategic Business Impact</h3>
+            <p className="text-xl text-gray-300 max-w-5xl mx-auto leading-relaxed mb-6">
+              Alphastart Tourism now operates on a scalable digital backbone that can support higher booking volumes,
+              multi-branch coordination, and future service expansion without proportionate growth in administrative overhead.
+              The organization moved from fragmented execution to data-guided operations with stronger financial control.
+            </p>
+            <p className="text-2xl md:text-3xl font-semibold text-gradient-ai">Ready to transform your operations with intelligent ERP systems?</p>
           </div>
         </div>
       </section>
