@@ -2,7 +2,7 @@
 # Deploy the production build from ./dist
 deployment:
   tasks:
-    - if [ -d "${HOME}/public_html/digrro.com" ]; then export DEPLOYPATH="${HOME}/public_html/digrro.com/"; elif [ -d "${HOME}/digrro.com" ]; then export DEPLOYPATH="${HOME}/digrro.com/"; elif [ -d "${HOME}/public_html/digrro" ]; then export DEPLOYPATH="${HOME}/public_html/digrro/"; else echo "ERROR: Digrro deploy path not found. Create a dedicated document root (for example ${HOME}/public_html/digrro.com) and point digrro.com to it in cPanel."; exit 1; fi
-    - /bin/mkdir -p "$DEPLOYPATH"
-    - /bin/rm -rf "$DEPLOYPATH"/*
-    - /bin/cp -a ./dist/. "$DEPLOYPATH"
+    - 'if [ -d "${HOME}/public_html/digrro.com" ]; then export DEPLOYPATH="${HOME}/public_html/digrro.com/"; elif [ -d "${HOME}/digrro.com" ]; then export DEPLOYPATH="${HOME}/digrro.com/"; elif [ -d "${HOME}/public_html/digrro" ]; then export DEPLOYPATH="${HOME}/public_html/digrro/"; else echo "ERROR: Digrro deploy path not found. Create a dedicated document root (for example ${HOME}/public_html/digrro.com) and point digrro.com to it in cPanel."; exit 1; fi'
+    - '/bin/mkdir -p "$DEPLOYPATH"'
+    - '/bin/rm -rf "$DEPLOYPATH"/*'
+    - '/bin/cp -a ./dist/. "$DEPLOYPATH"'
