@@ -27,15 +27,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git ls-remote --exit-code --heads origin "${DEPLOY_BRANCH}" >/dev/null 2>&1; then
-            git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}"
-            if ! git merge-base --is-ancestor "origin/${DEPLOY_BRANCH}" HEAD; then
-              echo "::error::origin/${DEPLOY_BRANCH} is not an ancestor of main. Resolve divergence before deployment."
-              exit 1
-            fi
+          git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}" || true
+          if git push origin "HEAD:${DEPLOY_BRANCH}"; then
+            echo "Synced ${DEPLOY_BRANCH} with main (fast-forward)."
+          else
+            echo "::warning::Non-fast-forward detected. Updating ${DEPLOY_BRANCH} using --force-with-lease."
+            git push --force-with-lease origin "HEAD:${DEPLOY_BRANCH}"
           fi
-
-          git push origin "HEAD:${DEPLOY_BRANCH}"
 
       - name: Trigger cPanel deployment and wait
         shell: bash
