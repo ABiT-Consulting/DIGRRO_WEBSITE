@@ -1,0 +1,216 @@
+name: Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - main
+      - cpanel-deploy
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_BRANCH: cpanel-deploy
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync cpanel-deploy from main
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git ls-remote --exit-code --heads origin "${DEPLOY_BRANCH}" >/dev/null 2>&1; then
+            git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}"
+            if ! git merge-base --is-ancestor "origin/${DEPLOY_BRANCH}" HEAD; then
+              echo "::error::origin/${DEPLOY_BRANCH} is not an ancestor of main. Resolve divergence before deployment."
+              exit 1
+            fi
+          fi
+
+          git push origin "HEAD:${DEPLOY_BRANCH}"
+
+      - name: Trigger cPanel deployment and wait
+        shell: bash
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
+          CPANEL_USER: ${{ secrets.CPANEL_USER }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+          CPANEL_REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
+          CPANEL_BRANCH: cpanel-deploy
+          CPANEL_INSECURE: ${{ secrets.CPANEL_INSECURE }}
+        run: |
+          set -euo pipefail
+
+          : "${CPANEL_HOST:?Missing secret CPANEL_HOST (example: server.example.com)}"
+          : "${CPANEL_USER:?Missing secret CPANEL_USER (your cPanel username)}"
+          : "${CPANEL_TOKEN:?Missing secret CPANEL_TOKEN (cPanel API token)}"
+          : "${CPANEL_REPO_ROOT:?Missing secret CPANEL_REPO_ROOT (absolute path to the cPanel git repo)}"
+
+          port="${CPANEL_PORT:-2083}"
+          branch="${CPANEL_BRANCH:-cpanel-deploy}"
+          base="https://${CPANEL_HOST}:${port}"
+
+          auth_header="Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}"
+          curl_flags=(-sS)
+          if [[ "${CPANEL_INSECURE:-}" == "true" ]]; then
+            curl_flags+=(-k)
+          fi
+
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "::error::jq is required but not found on the runner."
+            exit 1
+          fi
+
+          cpanel_get() {
+            local endpoint="$1"; shift
+            local out="$1"; shift
+            local url="${base}/execute/${endpoint}"
+            local err
+            err="$(mktemp)"
+
+            local cmd=(curl "${curl_flags[@]}" -H "$auth_header" -H "Accept: application/json" --get)
+            local kv
+            for kv in "$@"; do
+              cmd+=(--data-urlencode "$kv")
+            done
+            cmd+=("$url" -o "$out" -w "%{http_code}")
+
+            set +e
+            local code
+            code="$("${cmd[@]}" 2>"$err")"
+            local rc=$?
+            set -e
+
+            if (( rc != 0 )); then
+              echo "::error::curl failed for ${endpoint} (rc=${rc})"
+              sed -n '1,200p' "$err" || true
+              if [[ -s "$out" ]]; then
+                echo "---- response ----"
+                sed -n '1,200p' "$out" || true
+                echo "---- end ----"
+              fi
+              return 1
+            fi
+
+            if [[ "$code" =~ ^[0-9]+$ ]] && (( code >= 400 )); then
+              echo "::error::HTTP ${code} from ${endpoint}"
+              if [[ -s "$out" ]]; then
+                echo "---- response ----"
+                sed -n '1,200p' "$out" || true
+                echo "---- end ----"
+              fi
+              return 1
+            fi
+
+            return 0
+          }
+
+          jq_ok_or_dump() {
+            local file="$1"
+            if ! jq . "$file" >/dev/null 2>&1; then
+              echo "::error::Response was not valid JSON."
+              sed -n '1,200p' "$file" || true
+              return 1
+            fi
+            return 0
+          }
+
+          jq_status_or_error() {
+            local file="$1"
+            local endpoint="$2"
+            if ! jq -e '((.result // .).status // 0) == 1' "$file" >/dev/null 2>&1; then
+              echo "::error::${endpoint} returned status != 1"
+              raw="$(jq -c '.' "$file" 2>/dev/null || true)"
+              if [[ -n "${raw:-}" && "${raw:-null}" != "null" ]]; then
+                raw="${raw:0:1500}"
+                echo "::error::Response(excerpt): ${raw}"
+              fi
+              reason="$(jq -r '(.result // .).metadata.reason // empty' "$file" 2>/dev/null || true)"
+              if [[ -n "${reason:-}" && "${reason:-null}" != "null" ]]; then
+                echo "::error::Reason: ${reason}"
+              fi
+              errors_json="$(jq -c '(.result // .).errors // empty' "$file" 2>/dev/null || true)"
+              if [[ -n "${errors_json:-}" && "${errors_json:-null}" != "null" && "${errors_json:-}" != "[]" ]]; then
+                echo "::error::Errors: ${errors_json}"
+              fi
+              return 1
+            fi
+            return 0
+          }
+
+          echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
+          update_resp="$(mktemp)"
+          cpanel_get "VersionControl/update" "$update_resp" \
+            "repository_root=${CPANEL_REPO_ROOT}" \
+            "branch=${branch}"
+          jq_ok_or_dump "$update_resp"
+          jq . "$update_resp"
+          jq_status_or_error "$update_resp" "VersionControl/update"
+
+          deployable="$(jq -r '(.result // .).data.deployable // 0' "$update_resp")"
+          deployable_reason="$(jq -r '(.result // .).data.deployable_reason // empty' "$update_resp")"
+          if [[ "$deployable" != "1" ]]; then
+            echo "::error::Repository is not deployable. ${deployable_reason}"
+            exit 1
+          fi
+
+          echo "Triggering cPanel deploy for repo: ${CPANEL_REPO_ROOT}"
+          create_resp="$(mktemp)"
+          cpanel_get "VersionControlDeployment/create" "$create_resp" \
+            "repository_root=${CPANEL_REPO_ROOT}"
+          jq_ok_or_dump "$create_resp"
+          jq . "$create_resp"
+          jq_status_or_error "$create_resp" "VersionControlDeployment/create"
+
+          deploy_id="$(jq -r '(.result // .).data.deploy_id // empty' "$create_resp")"
+          if [[ -z "$deploy_id" || "$deploy_id" == "null" ]]; then
+            echo "::error::Missing deploy_id in response."
+            exit 1
+          fi
+
+          echo "Deployment queued: deploy_id=${deploy_id}"
+
+          deadline=$((SECONDS + 300))
+          while true; do
+            retrieve_resp="$(mktemp)"
+            cpanel_get "VersionControlDeployment/retrieve" "$retrieve_resp"
+            jq_ok_or_dump "$retrieve_resp"
+
+            entry="$(jq -c --arg id "$deploy_id" '((.result // .).data[]? | select((.deploy_id|tostring) == $id) | .) // empty' "$retrieve_resp" | head -n1 || true)"
+            if [[ -z "$entry" ]]; then
+              echo "Waiting for deploy_id=${deploy_id} to appear..."
+            else
+              echo "$entry" | jq .
+              succeeded="$(echo "$entry" | jq -r '.timestamps.succeeded // empty')"
+              failed="$(echo "$entry" | jq -r '.timestamps.failed // empty')"
+              canceled="$(echo "$entry" | jq -r '.timestamps.canceled // empty')"
+
+              if [[ -n "$succeeded" ]]; then
+                ident="$(echo "$entry" | jq -r '.repository_state.identifier // empty')"
+                deployed_branch="$(echo "$entry" | jq -r '.repository_state.branch // empty')"
+                echo "cPanel deploy: success (branch=${deployed_branch}, commit=${ident})"
+                exit 0
+              fi
+
+              if [[ -n "$failed" || -n "$canceled" ]]; then
+                echo "::error::cPanel deploy failed (deploy_id=${deploy_id})"
+                exit 1
+              fi
+            fi
+
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out waiting for cPanel deployment to complete (deploy_id=${deploy_id})."
+              exit 1
+            fi
+
+            sleep 3
+          done
