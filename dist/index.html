@@ -63,5 +63,33 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const message = "Hi Digrro team, I would like to learn more about your services.";
+        const whatsappHref = `https://wa.me/971544649231?text=${encodeURIComponent(message)}`;
+
+        const syncWhatsAppLink = () => {
+          const link = document.querySelector('a[aria-label="Chat with Digrro on WhatsApp"]');
+          if (!link) {
+            return false;
+          }
+
+          link.setAttribute("href", whatsappHref);
+          return true;
+        };
+
+        if (syncWhatsAppLink()) {
+          return;
+        }
+
+        const observer = new MutationObserver(() => {
+          if (syncWhatsAppLink()) {
+            observer.disconnect();
+          }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+      })();
+    </script>
   </body>
 </html>
