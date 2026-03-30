@@ -99,36 +99,28 @@
     </script>
     <script>
       (() => {
+        const legacyPhoneHref = "tel:+971562551980";
         const patchedPhoneHref = "tel:+962785450323";
+        const patchedPhoneText = "+962 7 8545 0323";
 
-        const injectContact = () => {
-          if (document.querySelector(`a[href="${patchedPhoneHref}"]`)) {
-            return true;
-          }
+        const syncCreativeManagerContact = () => {
+          document.querySelectorAll(`a[href="${legacyPhoneHref}"]`).forEach((link) => {
+            link.setAttribute("href", patchedPhoneHref);
+            link.textContent = patchedPhoneText;
+          });
 
-          const referenceLink = document.querySelector('a[href="tel:+971562551980"]');
-          const referenceEntry = referenceLink?.parentElement;
-          const contactsList = referenceEntry?.parentElement;
-          if (!referenceEntry || !contactsList) {
-            return false;
-          }
+          const patchedLinks = [...document.querySelectorAll(`a[href="${patchedPhoneHref}"]`)];
+          patchedLinks.slice(1).forEach((link) => {
+            link.parentElement?.remove();
+          });
 
-          const newEntry = referenceEntry.cloneNode(true);
-          const newLink = newEntry.querySelector("a");
-          if (!newLink) {
-            return false;
-          }
-
-          newLink.setAttribute("href", patchedPhoneHref);
-          newLink.textContent = "+962 7 8545 0323";
-          referenceEntry.insertAdjacentElement("afterend", newEntry);
-          return true;
+          return patchedLinks.length > 0 || document.querySelector(`a[href="${patchedPhoneHref}"]`) !== null;
         };
 
-        injectContact();
+        syncCreativeManagerContact();
 
         const observer = new MutationObserver(() => {
-          injectContact();
+          syncCreativeManagerContact();
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
