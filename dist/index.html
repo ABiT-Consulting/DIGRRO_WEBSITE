@@ -103,6 +103,41 @@
         const patchedPhoneHref = "tel:+962785450323";
         const patchedPhoneText = "+962 7 8545 0323";
 
+        const addCreativeManagerIcon = () => {
+          const patchedLink = document.querySelector(`a[href="${patchedPhoneHref}"]`);
+          const entry = patchedLink?.parentElement;
+          if (!patchedLink || !entry) {
+            return false;
+          }
+
+          if (entry.dataset.iconified === "true") {
+            return true;
+          }
+
+          const phoneLabel = [...document.querySelectorAll("div")].find(
+            (node) => node.textContent?.trim() === "Phone"
+          );
+          const phoneSection = phoneLabel?.closest(".flex.items-start.space-x-4");
+          const sourceIcon = phoneSection?.querySelector("svg");
+          if (!sourceIcon) {
+            return false;
+          }
+
+          const iconClone = sourceIcon.cloneNode(true);
+          iconClone.setAttribute("aria-hidden", "true");
+
+          const content = document.createElement("div");
+          while (entry.firstChild) {
+            content.appendChild(entry.firstChild);
+          }
+
+          entry.classList.add("flex", "items-start", "space-x-4");
+          entry.appendChild(iconClone);
+          entry.appendChild(content);
+          entry.dataset.iconified = "true";
+          return true;
+        };
+
         const syncCreativeManagerContact = () => {
           document.querySelectorAll(`a[href="${legacyPhoneHref}"]`).forEach((link) => {
             link.setAttribute("href", patchedPhoneHref);
@@ -111,9 +146,11 @@
 
           const patchedLinks = [...document.querySelectorAll(`a[href="${patchedPhoneHref}"]`)];
           patchedLinks.slice(1).forEach((link) => {
-            link.parentElement?.remove();
+            const duplicateEntry = link.closest('div[data-iconified="true"]') || link.parentElement;
+            duplicateEntry?.remove();
           });
 
+          addCreativeManagerIcon();
           return patchedLinks.length > 0 || document.querySelector(`a[href="${patchedPhoneHref}"]`) !== null;
         };
 
