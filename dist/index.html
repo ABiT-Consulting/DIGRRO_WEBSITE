@@ -97,5 +97,42 @@
         observer.observe(document.body, { childList: true, subtree: true });
       })();
     </script>
+    <script>
+      (() => {
+        const patchedPhoneHref = "tel:+962785450323";
+
+        const injectContact = () => {
+          if (document.querySelector(`a[href="${patchedPhoneHref}"]`)) {
+            return true;
+          }
+
+          const referenceLink = document.querySelector('a[href="tel:+971562551980"]');
+          const referenceEntry = referenceLink?.parentElement;
+          const contactsList = referenceEntry?.parentElement;
+          if (!referenceEntry || !contactsList) {
+            return false;
+          }
+
+          const newEntry = referenceEntry.cloneNode(true);
+          const newLink = newEntry.querySelector("a");
+          if (!newLink) {
+            return false;
+          }
+
+          newLink.setAttribute("href", patchedPhoneHref);
+          newLink.textContent = "+962 7 8545 0323";
+          referenceEntry.insertAdjacentElement("afterend", newEntry);
+          return true;
+        };
+
+        injectContact();
+
+        const observer = new MutationObserver(() => {
+          injectContact();
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+      })();
+    </script>
   </body>
 </html>
