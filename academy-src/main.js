@@ -2,6 +2,7 @@ import './styles.css';
 import { getPlan, planEntries } from './lib/plans.js';
 
 const registrationApiPath = './api/register.php';
+let lastModalTrigger = null;
 
 function buildCheckoutReference() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -15,7 +16,7 @@ function getRegistrationApiUrl() {
   return new URL(registrationApiPath, window.location.href).href;
 }
 
-function openModal(planKey) {
+function openModal(planKey, triggerElement = null) {
   const plan = getPlan(planKey);
   if (!plan) {
     return;
@@ -29,6 +30,11 @@ function openModal(planKey) {
   const planKeyInput = document.getElementById('selected-plan-key');
   const formStatus = document.getElementById('enrollment-status');
   const submitButton = document.getElementById('enrollment-submit');
+  const firstInput = document.getElementById('enrollment-name');
+
+  if (triggerElement instanceof HTMLElement) {
+    lastModalTrigger = triggerElement;
+  }
 
   form?.reset();
   planName.textContent = plan.label;
@@ -38,14 +44,31 @@ function openModal(planKey) {
   formStatus.textContent = 'Complete your academy registration first. Digrro will send your confirmation email from system@digrro.com before you continue to Wise.';
   submitButton.textContent = 'Continue to Wise';
   submitButton.disabled = false;
+  modal.removeAttribute('inert');
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => {
+    firstInput?.focus();
+  });
 }
 
 function closeModal() {
   const modal = document.getElementById('enrollment-modal');
+  const activeElement = document.activeElement;
+
+  if (activeElement instanceof HTMLElement && modal?.contains(activeElement)) {
+    activeElement.blur();
+  }
+
   modal?.classList.remove('is-open');
   modal?.setAttribute('aria-hidden', 'true');
+  modal?.setAttribute('inert', '');
+
+  if (lastModalTrigger instanceof HTMLElement && document.contains(lastModalTrigger)) {
+    lastModalTrigger.focus();
+  }
+
+  lastModalTrigger = null;
 }
 
 async function submitRegistration(plan, registrationDetails, checkoutReference) {
@@ -106,7 +129,7 @@ function bindButtons() {
         return;
       }
 
-      openModal(plan.key);
+      openModal(plan.key, button);
     });
   });
 
@@ -123,7 +146,7 @@ function bindButtons() {
     const bestPlan = planEntries.find((entry) => entry.key === 'bootcamp') || planEntries[0];
     stickyButton.addEventListener('click', (event) => {
       event.preventDefault();
-      openModal(bestPlan.key);
+      openModal(bestPlan.key, stickyButton);
     });
   }
 }
