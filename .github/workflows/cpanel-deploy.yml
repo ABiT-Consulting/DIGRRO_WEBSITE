@@ -35,8 +35,13 @@ jobs:
 
       - name: Build academy bundle for cPanel branch
         shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
+          ACADEMY_BASE_URL: ${{ secrets.ACADEMY_BASE_URL }}
         run: |
           set -euo pipefail
+
+          : "${STRIPE_SECRET_KEY:?Missing secret STRIPE_SECRET_KEY_LIVE}"
 
           npm run academy:build
 

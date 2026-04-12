@@ -1,5 +1,11 @@
 import './styles.css';
 import { getPlan, planEntries } from './lib/plans.js';
+import {
+  buildPaymentLink,
+  getStripeCheckoutLabel,
+  getStripeCheckoutSummary,
+  isStripeConfigured
+} from './lib/stripe-links.js';
 
 const registrationApiPath = './api/register.php';
 let lastModalTrigger = null;
@@ -41,9 +47,11 @@ function openModal(planKey, triggerElement = null) {
   planAmount.textContent = plan.priceText;
   planMeta.textContent = plan.meta;
   planKeyInput.value = plan.key;
-  formStatus.textContent = 'Complete your academy registration first. Digrro will send your confirmation email from system@digrro.com before you continue to Wise.';
-  submitButton.textContent = 'Continue to Wise';
-  submitButton.disabled = false;
+  formStatus.textContent = isStripeConfigured
+    ? 'Complete your academy registration first. Digrro will send your confirmation email from system@digrro.com before you continue to Stripe.'
+    : 'Stripe checkout is not configured yet for this environment.';
+  submitButton.textContent = getStripeCheckoutLabel();
+  submitButton.disabled = !isStripeConfigured;
   modal.removeAttribute('inert');
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
@@ -112,12 +120,12 @@ async function submitRegistration(plan, registrationDetails, checkoutReference) 
 }
 
 function renderPaymentStatus() {
-  const statusText = document.getElementById('wise-status-text');
+  const statusText = document.getElementById('stripe-status-text');
   if (!statusText) {
     return;
   }
 
-  statusText.textContent = 'Choose a plan, complete your registration details, confirm your email from Digrro, and continue to Wise.';
+  statusText.textContent = getStripeCheckoutSummary();
 }
 
 function bindButtons() {
@@ -134,11 +142,11 @@ function bindButtons() {
   });
 
   document.querySelectorAll('[data-plan-link]').forEach((anchor) => {
-    const plan = getPlan(anchor.getAttribute('data-plan-link'));
-    if (!plan) {
+    const paymentLink = buildPaymentLink(anchor.getAttribute('data-plan-link'));
+    if (!paymentLink) {
       return;
     }
-    anchor.href = plan.wiseUrl;
+    anchor.href = paymentLink;
   });
 
   const stickyButton = document.querySelector('[data-sticky-pay]');
@@ -180,6 +188,7 @@ async function handleEnrollmentSubmit(event) {
   const pincode = document.getElementById('enrollment-pincode').value.trim();
   const company = document.getElementById('enrollment-company').value.trim();
   const checkoutReference = buildCheckoutReference();
+  const fallbackCheckoutUrl = buildPaymentLink(plan.key, { email, checkoutReference });
   const registrationDetails = {
     fullName,
     email,
@@ -194,6 +203,11 @@ async function handleEnrollmentSubmit(event) {
 
   if (!plan) {
     statusNode.textContent = 'Please choose a valid training plan.';
+    return;
+  }
+
+  if (!isStripeConfigured) {
+    statusNode.textContent = 'Stripe checkout is not configured right now. Add the Stripe secret key for this environment and try again.';
     return;
   }
 
@@ -230,8 +244,15 @@ async function handleEnrollmentSubmit(event) {
     return;
   }
 
-  statusNode.textContent = registrationResult.message || 'Registration saved. Redirecting to Wise...';
-  window.location.href = registrationResult.checkoutUrl || plan.wiseUrl;
+  const checkoutUrl = registrationResult.checkoutUrl || fallbackCheckoutUrl;
+  if (!checkoutUrl) {
+    statusNode.textContent = 'Your registration is saved, but Stripe checkout is not configured for this plan yet.';
+    submitButton.disabled = false;
+    return;
+  }
+
+  statusNode.textContent = registrationResult.message || 'Registration saved. Redirecting to Stripe...';
+  window.location.href = checkoutUrl;
 }
 
 function init() {

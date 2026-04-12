@@ -5,7 +5,7 @@ export const plans = {
     amountUsd: 200,
     priceText: '$200',
     meta: 'Per seat public cohort or $1,750 for a private team workshop',
-    wiseUrl: 'https://wise.com/pay/r/T8dFGpv3_Sg2afU'
+    checkoutDescription: 'Live AI marketing workshop for campaign planning, copy, and content workflow acceleration.'
   },
   bootcamp: {
     key: 'bootcamp',
@@ -13,7 +13,7 @@ export const plans = {
     amountUsd: 650,
     priceText: '$650',
     meta: 'Early-bird per seat, $850 standard price',
-    wiseUrl: 'https://wise.com/pay/r/MsWUgYiH8IAsAWs'
+    checkoutDescription: 'Four-week bootcamp for AI content systems, short-form video, and execution workflows.'
   },
   corporate: {
     key: 'corporate',
@@ -21,7 +21,7 @@ export const plans = {
     amountUsd: 4800,
     priceText: 'From $4,800',
     meta: 'For teams up to 15 participants, with premium custom option at $7,500',
-    wiseUrl: 'https://wise.com/pay/r/B4wiCcWLuoQo_EA'
+    checkoutDescription: 'Private corporate AI training program with customized delivery, templates, and team enablement.'
   }
 };
 

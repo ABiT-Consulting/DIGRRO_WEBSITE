@@ -21,6 +21,14 @@ if ($plan === null) {
     ]);
 }
 
+$baseCheckoutUrl = trim((string) ($plan['checkoutUrl'] ?? ''));
+if ($baseCheckoutUrl === '') {
+    academy_json_response(503, [
+        'ok' => false,
+        'message' => 'Stripe checkout is not configured for this plan right now.'
+    ]);
+}
+
 $fullName = trim((string) ($payload['fullName'] ?? ''));
 $email = academy_normalize_email((string) ($payload['email'] ?? ''));
 $confirmEmail = academy_normalize_email((string) ($payload['confirmEmail'] ?? ''));
@@ -32,6 +40,7 @@ $city = trim((string) ($payload['city'] ?? ''));
 $pincode = trim((string) ($payload['pincode'] ?? ''));
 $company = trim((string) ($payload['company'] ?? ''));
 $checkoutReference = trim((string) ($payload['checkoutReference'] ?? ''));
+$checkoutUrl = academy_build_checkout_url($baseCheckoutUrl, $email, $checkoutReference, $plan['key']);
 
 if (
     $fullName === ''
@@ -222,7 +231,7 @@ try {
         'plan_key' => $plan['key'],
         'plan_name' => $plan['label'],
         'amount_usd' => $plan['amountUsd'],
-        'checkout_url' => $plan['checkoutUrl'],
+        'checkout_url' => $checkoutUrl,
         'checkout_reference' => $checkoutReference,
     ]);
 
@@ -239,10 +248,10 @@ try {
 
     academy_json_response(200, [
         'ok' => true,
-        'checkoutUrl' => $plan['checkoutUrl'],
+        'checkoutUrl' => $checkoutUrl,
         'message' => $shouldSendConfirmation
-            ? 'Your registration is saved. We sent a confirmation email from system@digrro.com. Continuing to Wise now.'
-            : 'Your registration is saved. Continuing to Wise now.'
+            ? 'Your registration is saved. We sent a confirmation email from system@digrro.com. Continuing to Stripe now.'
+            : 'Your registration is saved. Continuing to Stripe now.'
     ]);
 } catch (Throwable $error) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
