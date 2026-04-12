@@ -3,6 +3,9 @@
 deployment:
   tasks:
     - 'if [ -d "${HOME}/public_html/digrro.com" ]; then export DEPLOYPATH="${HOME}/public_html/digrro.com/"; elif [ -d "${HOME}/digrro.com" ]; then export DEPLOYPATH="${HOME}/digrro.com/"; elif [ -d "${HOME}/public_html/digrro" ]; then export DEPLOYPATH="${HOME}/public_html/digrro/"; else echo "ERROR: Digrro deploy path not found. Create a dedicated document root (for example ${HOME}/public_html/digrro.com) and point digrro.com to it in cPanel."; exit 1; fi'
+    - 'if [ ! -f ./.env ]; then echo "ERROR: Missing .env in the deployment repository."; exit 1; fi'
     - '/bin/mkdir -p "$DEPLOYPATH"'
-    - '/bin/rm -rf "$DEPLOYPATH"/*'
+    - '/bin/mkdir -p "$DEPLOYPATH/academy-data"'
+    - '/usr/bin/find "$DEPLOYPATH" -mindepth 1 -maxdepth 1 ! -name ".env" ! -name "academy-data" -exec /bin/rm -rf {} +'
     - '/bin/cp -a ./dist/. "$DEPLOYPATH"'
+    - '/bin/cp -a ./.env "$DEPLOYPATH/.env"'

@@ -126,5 +126,50 @@
         observer.observe(document.body, { childList: true, subtree: true });
       })();
     </script>
+    <script>
+      (() => {
+        const ensureAcademyCta = () => {
+          if (document.getElementById("digrro-academy-entry")) {
+            return true;
+          }
+
+          const cta = document.createElement("a");
+          cta.id = "digrro-academy-entry";
+          cta.href = "/academy/";
+          cta.textContent = "Explore Digrro Academy";
+          Object.assign(cta.style, {
+            position: "fixed",
+            left: "16px",
+            bottom: "16px",
+            zIndex: "65",
+            padding: "12px 18px",
+            borderRadius: "999px",
+            background: "linear-gradient(135deg, #ffd27a, #78e7ff)",
+            color: "#07111f",
+            fontWeight: "700",
+            fontFamily: "Segoe UI, sans-serif",
+            boxShadow: "0 18px 40px rgba(2, 8, 18, 0.28)",
+            border: "1px solid rgba(255,255,255,0.35)",
+            textDecoration: "none",
+            maxWidth: "calc(100vw - 92px)",
+          });
+
+          document.body.appendChild(cta);
+          return true;
+        };
+
+        if (ensureAcademyCta()) {
+          return;
+        }
+
+        const observer = new MutationObserver(() => {
+          if (ensureAcademyCta()) {
+            observer.disconnect();
+          }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+      })();
+    </script>
   </body>
 </html>

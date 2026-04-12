@@ -1,0 +1,13 @@
+{
+  "name": "digrro-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "academy:dev": "vite --config vite.academy.config.js",
+    "academy:build": "vite build --config vite.academy.config.js && node scripts/copy-academy-server-files.mjs",
+    "academy:preview": "vite preview --config vite.academy.config.js"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}

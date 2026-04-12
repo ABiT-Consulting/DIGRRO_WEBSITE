@@ -11,29 +11,62 @@ permissions:
   contents: write
 
 jobs:
-  deploy:
+  sync-cpanel-branch:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      DEPLOY_BRANCH: cpanel-deploy
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Sync cpanel-deploy from main
-        if: github.ref == 'refs/heads/main'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
 
-          git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}" || true
-          if git push origin "HEAD:${DEPLOY_BRANCH}"; then
-            echo "Synced ${DEPLOY_BRANCH} with main (fast-forward)."
-          else
-            echo "::warning::Non-fast-forward detected. Updating ${DEPLOY_BRANCH} using --force-with-lease."
-            git push --force-with-lease origin "HEAD:${DEPLOY_BRANCH}"
+          npm ci
+
+      - name: Build academy bundle for cPanel branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npm run academy:build
+
+      - name: Push academy build to cpanel-deploy
+        shell: bash
+        env:
+          DEPLOY_BRANCH: cpanel-deploy
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B academy-live-build
+          git add .env dist/.htaccess dist/academy dist/academy-data
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Build academy assets for ${GITHUB_SHA}"
           fi
+
+          git push --force-with-lease origin "HEAD:${DEPLOY_BRANCH}"
+
+  deploy:
+    if: github.ref == 'refs/heads/cpanel-deploy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Trigger cPanel deployment and wait
         shell: bash
