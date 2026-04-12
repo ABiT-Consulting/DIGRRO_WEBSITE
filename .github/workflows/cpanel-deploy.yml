@@ -36,12 +36,19 @@ jobs:
       - name: Build academy bundle for cPanel branch
         shell: bash
         env:
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
-          ACADEMY_BASE_URL: ${{ secrets.ACADEMY_BASE_URL }}
+          STRIPE_SECRET_KEY_LIVE: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
+          STRIPE_SECRET_KEY_FALLBACK: ${{ secrets.STRIPE_SECRET_KEY }}
+          ACADEMY_BASE_URL_SECRET: ${{ secrets.ACADEMY_BASE_URL }}
         run: |
           set -euo pipefail
 
-          : "${STRIPE_SECRET_KEY:?Missing secret STRIPE_SECRET_KEY_LIVE}"
+          repo_stripe_secret="$(awk -F= '/^Secret key=/{sub(/^[[:space:]]+/, "", $2); sub(/[[:space:]]+$/, "", $2); print $2; exit}' .env 2>/dev/null || true)"
+          repo_academy_base_url="$(awk -F= '/^ACADEMY_BASE_URL=/{sub(/^[[:space:]]+/, "", $2); sub(/[[:space:]]+$/, "", $2); print $2; exit}' .env 2>/dev/null || true)"
+
+          export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-$repo_stripe_secret}}"
+          export ACADEMY_BASE_URL="${ACADEMY_BASE_URL_SECRET:-${repo_academy_base_url:-https://digrro.com/academy}}"
+
+          : "${STRIPE_SECRET_KEY:?Missing Stripe secret. Set GitHub secret STRIPE_SECRET_KEY_LIVE or STRIPE_SECRET_KEY, or populate Secret key= in .env}"
 
           npm run academy:build
 
