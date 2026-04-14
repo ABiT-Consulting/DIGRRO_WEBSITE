@@ -1,0 +1,28 @@
+{
+  "mode": "test",
+  "generatedAt": "2026-04-14T07:39:47.672Z",
+  "academyBaseUrl": "https://digrro.com/academy",
+  "links": {
+    "sprint": {
+      "productId": "prod_UJmP3WwzYgXuyh",
+      "priceId": "price_1TL8qrJ9NQPjZ8CcFubQLSiM",
+      "paymentLinkId": "plink_1TM1ZpJ9NQPjZ8CceuktvmPJ",
+      "redirectUrl": "https://digrro.com/academy/?checkout=success&plan=sprint",
+      "url": "https://buy.stripe.com/test_00wbJ2dZvdoj1Ag0fGdjO03"
+    },
+    "bootcamp": {
+      "productId": "prod_UJmP6ndMZHPeOa",
+      "priceId": "price_1TL8qvJ9NQPjZ8CcFWgrv7vM",
+      "paymentLinkId": "plink_1TM1ZrJ9NQPjZ8CcQAktN2J5",
+      "redirectUrl": "https://digrro.com/academy/?checkout=success&plan=bootcamp",
+      "url": "https://buy.stripe.com/test_8x25kEdZvesna6M0fGdjO04"
+    },
+    "corporate": {
+      "productId": "prod_UJmPzWUZEaBJ8v",
+      "priceId": "price_1TL8qyJ9NQPjZ8CcXXFyg2ZV",
+      "paymentLinkId": "plink_1TM1ZtJ9NQPjZ8CcCJurtsAV",
+      "redirectUrl": "https://digrro.com/academy/?checkout=success&plan=corporate",
+      "url": "https://buy.stripe.com/test_5kQ6oIbRnesna6M8McdjO05"
+    }
+  }
+}

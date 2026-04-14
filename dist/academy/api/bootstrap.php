@@ -17,7 +17,9 @@ function academy_load_env(): array
 
     $env = [];
     $candidatePaths = [
+        academy_root_path() . DIRECTORY_SEPARATOR . '.env.local',
         academy_root_path() . DIRECTORY_SEPARATOR . '.env',
+        dirname(academy_root_path()) . DIRECTORY_SEPARATOR . '.env.local',
         dirname(academy_root_path()) . DIRECTORY_SEPARATOR . '.env',
     ];
 
@@ -138,6 +140,83 @@ function academy_confirmation_url(string $token): string
     return academy_academy_base_url() . '/api/confirm.php?token=' . urlencode($token);
 }
 
+function academy_generated_payment_links(): array
+{
+    static $config = null;
+
+    if ($config !== null) {
+        return $config;
+    }
+
+    $path = __DIR__ . DIRECTORY_SEPARATOR . 'generated-payment-links.json';
+    if (!is_file($path)) {
+        $config = ['mode' => 'unconfigured', 'links' => []];
+        return $config;
+    }
+
+    $raw = file_get_contents($path);
+    if ($raw === false || trim($raw) === '') {
+        $config = ['mode' => 'unconfigured', 'links' => []];
+        return $config;
+    }
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        $config = ['mode' => 'invalid', 'links' => []];
+        return $config;
+    }
+
+    $config = $decoded;
+    return $config;
+}
+
+function academy_checkout_url_for_plan(string $planKey): ?string
+{
+    $links = academy_generated_payment_links()['links'] ?? [];
+    $paymentLink = $links[$planKey] ?? null;
+    $url = is_array($paymentLink) ? ($paymentLink['url'] ?? null) : null;
+
+    return is_string($url) && trim($url) !== '' ? trim($url) : null;
+}
+
+function academy_url_with_query(string $baseUrl, array $queryParams): string
+{
+    $parts = parse_url($baseUrl);
+    if ($parts === false) {
+        return $baseUrl;
+    }
+
+    $existingQuery = [];
+    if (isset($parts['query'])) {
+        parse_str($parts['query'], $existingQuery);
+    }
+
+    $parts['query'] = http_build_query(array_merge($existingQuery, $queryParams));
+
+    $scheme = isset($parts['scheme']) ? $parts['scheme'] . '://' : '';
+    $user = $parts['user'] ?? '';
+    $pass = isset($parts['pass']) ? ':' . $parts['pass'] : '';
+    $auth = $user !== '' ? $user . $pass . '@' : '';
+    $host = $parts['host'] ?? '';
+    $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+    $path = $parts['path'] ?? '';
+    $query = isset($parts['query']) && $parts['query'] !== '' ? '?' . $parts['query'] : '';
+    $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+
+    return $scheme . $auth . $host . $port . $path . $query . $fragment;
+}
+
+function academy_build_checkout_url(string $baseUrl, string $email, string $checkoutReference, string $planKey): string
+{
+    return academy_url_with_query($baseUrl, [
+        'prefilled_email' => $email,
+        'client_reference_id' => $checkoutReference,
+        'utm_source' => 'digrro_academy',
+        'utm_medium' => 'website',
+        'utm_campaign' => $planKey,
+    ]);
+}
+
 function academy_plans(): array
 {
     return [
@@ -145,19 +224,19 @@ function academy_plans(): array
             'key' => 'sprint',
             'label' => 'AI Marketing Sprint',
             'amountUsd' => 200,
-            'checkoutUrl' => 'https://wise.com/pay/r/T8dFGpv3_Sg2afU'
+            'checkoutUrl' => academy_checkout_url_for_plan('sprint')
         ],
         'bootcamp' => [
             'key' => 'bootcamp',
             'label' => 'AI Content and Video Bootcamp',
             'amountUsd' => 650,
-            'checkoutUrl' => 'https://wise.com/pay/r/MsWUgYiH8IAsAWs'
+            'checkoutUrl' => academy_checkout_url_for_plan('bootcamp')
         ],
         'corporate' => [
             'key' => 'corporate',
             'label' => 'Corporate Academy Program',
             'amountUsd' => 4800,
-            'checkoutUrl' => 'https://wise.com/pay/r/B4wiCcWLuoQo_EA'
+            'checkoutUrl' => academy_checkout_url_for_plan('corporate')
         ]
     ];
 }
