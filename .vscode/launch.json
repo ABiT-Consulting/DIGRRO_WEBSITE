@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Vite (cpanel-deploy): Serve dist",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npx vite dist --host 127.0.0.1 --port 5173 --strictPort",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "Local:\\s*(https?://[^\\s]+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Open Browser (Server already running)",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5173",
+      "webRoot": "${workspaceFolder}/dist"
+    }
+  ]
+}
