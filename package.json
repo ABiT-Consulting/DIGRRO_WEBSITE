@@ -6,7 +6,7 @@
     "academy:stripe:sync": "node scripts/sync-stripe-payment-links.mjs",
     "academy:dev": "npm run academy:stripe:sync && vite --config vite.academy.config.js",
     "academy:build": "npm run academy:stripe:sync && vite build --config vite.academy.config.js && node scripts/copy-academy-server-files.mjs",
-    "academy:preview": "vite preview --config vite.academy.config.js"
+    "academy:preview": "vite preview --outDir dist"
   },
   "devDependencies": {
     "stripe": "^18.5.0",

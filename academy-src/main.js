@@ -1,48 +1,18 @@
 import "./styles.css";
 import { getPlan, planEntries } from "./lib/plans.js";
 import {
-  buildPaymentLink,
-  getStripeCheckoutLabel,
   getStripeCheckoutSummary,
-  isStripeConfigured,
-  isStripePlanConfigured,
 } from "./lib/stripe-links.js";
 
-const registrationApiPath = "./api/register.php";
-const registrationApiTimeoutMs = 4500;
-const emailVerificationApiUrl = "http://127.0.0.1:3000/register";
+const registrationApiUrl = "http://localhost:3000/register";
+const checkoutUrlApiUrl = "http://localhost:3000/checkout-url";
 let lastModalTrigger = null;
 
-function buildCheckoutReference() {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
+function getFrontendHomeUrl() {
+  const frontendUrl =
+    typeof process !== "undefined" ? process.env?.FRONTEND_URL : "";
 
-  return `academy-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-async function requestEmailVerification(email, checkoutUrl) {
-  console.log("Sending email verification request to backend:", email);
-
-  const response = await fetch(emailVerificationApiUrl, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, checkoutUrl }),
-  });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload?.ok) {
-    throw new Error(payload?.message || "Email verification request failed.");
-  }
-
-  console.log("Backend accepted email verification request:", payload);
-  return payload;
+  return frontendUrl || "/";
 }
 
 function isValidStripeRedirectUrl(value) {
@@ -59,12 +29,8 @@ function handleVerifiedSuccessRoute() {
     return false;
   }
 
-  console.log("[frontend] /verified-success route detected");
-
   const params = new URLSearchParams(window.location.search);
-  const status = params.get("status");
-  const redirectUrl = params.get("redirect") || "";
-  const canRedirectToPayment = !status && isValidStripeRedirectUrl(redirectUrl);
+  const token = params.get("token") || "";
 
   document.body.replaceChildren();
 
@@ -77,52 +43,92 @@ function handleVerifiedSuccessRoute() {
     "width:min(560px,100%);padding:28px;border:1px solid rgba(126,169,255,.24);background:rgba(11,25,43,.95);border-radius:16px;box-shadow:0 24px 70px rgba(2,8,18,.4);";
 
   const badge = document.createElement("div");
-  badge.textContent = canRedirectToPayment ? "Verified" : "Verification issue";
+  badge.textContent = "Verified";
   badge.style.cssText =
     "display:inline-flex;margin-bottom:14px;padding:6px 10px;border-radius:999px;background:rgba(95,228,255,.14);color:#5fe4ff;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.06em;";
 
   const heading = document.createElement("h1");
-  heading.textContent = canRedirectToPayment
-    ? "Email verified"
-    : "We could not verify this link";
+  heading.textContent = "Email verified successfully ✅";
   heading.style.cssText = "margin:0 0 12px;font-size:32px;";
 
   const copy = document.createElement("p");
-  copy.textContent = canRedirectToPayment
-    ? "Your email has been verified. Redirecting you to secure payment in 2 seconds."
-    : "The verification link was invalid or could not be processed. Please register again to request a new link.";
+  copy.textContent =
+    "You will be redirected to the payment page in 3 seconds...";
   copy.style.cssText = "margin:0;line-height:1.65;color:#b9c8df;";
+
+  const countdown = document.createElement("div");
+  countdown.textContent = "3";
+  countdown.style.cssText =
+    "margin-top:20px;font-size:52px;line-height:1;font-weight:900;color:#ffcc66;";
 
   const button = document.createElement("button");
   button.type = "button";
-  button.textContent = canRedirectToPayment
-    ? "Continue to Payment"
-    : "Return to Academy";
+  button.textContent = "Continue to Payment";
+  button.disabled = true;
   button.style.cssText =
     "margin-top:20px;border:0;border-radius:999px;padding:12px 18px;background:#ffcc66;color:#07111f;font-weight:800;cursor:pointer;";
-  button.addEventListener("click", () => {
-    if (canRedirectToPayment) {
-      console.log("[frontend] manual payment redirect:", redirectUrl);
-      window.location.href = redirectUrl;
-      return;
-    }
 
-    window.location.href = "/";
-  });
-
-  if (canRedirectToPayment) {
-    localStorage.setItem("digrro_academy_email_verified", "true");
-    window.setTimeout(() => {
-      console.log("[frontend] automatic payment redirect:", redirectUrl);
-      window.location.href = redirectUrl;
-    }, 2000);
-  }
-
-  panel.append(badge, heading, copy, button);
+  panel.append(badge, heading, copy, countdown, button);
   main.append(panel);
   document.body.append(main);
 
+  fetchCheckoutUrl(token)
+    .then((checkoutUrl) => {
+      button.disabled = false;
+      button.addEventListener("click", () => {
+        window.location.href = checkoutUrl;
+      });
+      startPaymentCountdown(checkoutUrl, countdown);
+    })
+    .catch((error) => {
+      console.error("[frontend] checkout URL lookup failed:", error);
+      badge.textContent = "Verification issue";
+      heading.textContent = "Payment link unavailable";
+      copy.textContent =
+        "Your email was verified, but the payment page could not be loaded. Please return to the academy page and try again.";
+      countdown.textContent = "";
+      button.disabled = false;
+      button.textContent = "Return to Academy";
+      button.addEventListener("click", () => {
+        window.location.href = "/";
+      });
+    });
+
   return true;
+}
+
+async function fetchCheckoutUrl(token) {
+  if (!token) {
+    throw new Error("Missing verification token.");
+  }
+
+  const url = new URL(checkoutUrlApiUrl);
+  url.searchParams.set("token", token);
+
+  const response = await fetch(url.toString());
+  const payload = await response.json().catch(() => ({}));
+  const checkoutUrl = payload.checkout_url || payload.checkoutUrl;
+
+  if (!response.ok || !payload.ok || !isValidStripeRedirectUrl(checkoutUrl)) {
+    throw new Error(payload.message || "Checkout URL is not available.");
+  }
+
+  return checkoutUrl;
+}
+
+function startPaymentCountdown(checkoutUrl, countdownNode) {
+  let seconds = 3;
+  countdownNode.textContent = String(seconds);
+
+  const interval = setInterval(() => {
+    seconds--;
+    countdownNode.textContent = String(seconds);
+
+    if (seconds === 0) {
+      clearInterval(interval);
+      window.location.href = checkoutUrl;
+    }
+  }, 1000);
 }
 
 function openModal(planKey, triggerElement = null) {
@@ -150,22 +156,16 @@ function openModal(planKey, triggerElement = null) {
   planAmount.textContent = plan.priceText;
   planMeta.textContent = plan.meta;
   planKeyInput.value = plan.key;
-  const isSelectedPlanConfigured = isStripePlanConfigured(plan.key);
-  formStatus.textContent = isSelectedPlanConfigured
-    ? "Complete your academy registration details, then continue to secure Stripe checkout."
-    : "Stripe checkout is not configured yet for this environment.";
-  submitButton.textContent = getStripeCheckoutLabel();
-  submitButton.disabled = !isSelectedPlanConfigured;
+  formStatus.textContent =
+    "Enter your email, then check your inbox for the verification link.";
+  submitButton.textContent = "Continue to Stripe";
+  submitButton.disabled = false;
   modal.removeAttribute("inert");
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
   requestAnimationFrame(() => {
     firstInput?.focus();
   });
-}
-
-function getRegistrationApiUrl() {
-  return new URL(registrationApiPath, window.location.href).href;
 }
 
 function closeModal() {
@@ -190,30 +190,15 @@ function closeModal() {
   lastModalTrigger = null;
 }
 
-async function submitRegistration(
-  plan,
-  registrationDetails,
-  checkoutReference,
-) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => {
-    controller.abort();
-  }, registrationApiTimeoutMs);
-
+async function submitRegistration(email, planKey) {
   try {
-    const response = await fetch(getRegistrationApiUrl(), {
+    const response = await fetch(registrationApiUrl, {
       method: "POST",
       headers: {
-        Accept: "application/json",
         "Content-Type": "application/json",
+        "X-Plan-Key": planKey,
       },
-      signal: controller.signal,
-      body: JSON.stringify({
-        planKey: plan.key,
-        checkoutReference,
-        sendConfirmationEmail: true,
-        ...registrationDetails,
-      }),
+      body: JSON.stringify({ email }),
     });
 
     const contentType = response.headers.get("content-type") || "";
@@ -222,7 +207,8 @@ async function submitRegistration(
     }
 
     const payload = await response.json();
-    if (!response.ok || !payload?.ok) {
+    const requestSucceeded = Boolean(payload?.ok || payload?.success);
+    if (!response.ok || !requestSucceeded) {
       return {
         ok: false,
         message:
@@ -231,7 +217,7 @@ async function submitRegistration(
       };
     }
 
-    return payload;
+    return { ...payload, ok: true };
   } catch (error) {
     return {
       ok: false,
@@ -240,8 +226,6 @@ async function submitRegistration(
           ? error.message
           : "Registration backend is unavailable.",
     };
-  } finally {
-    window.clearTimeout(timeoutId);
   }
 }
 
@@ -313,7 +297,6 @@ async function handleEnrollmentSubmit(event) {
   const statusNode = document.getElementById("enrollment-status");
   const submitButton = document.getElementById("enrollment-submit");
   const plan = getPlan(document.getElementById("selected-plan-key").value);
-  const fullName = document.getElementById("enrollment-name").value.trim();
   const email = document
     .getElementById("enrollment-email")
     .value.trim()
@@ -322,86 +305,54 @@ async function handleEnrollmentSubmit(event) {
     .getElementById("enrollment-email-confirm")
     .value.trim()
     .toLowerCase();
-  const phoneNumber = document.getElementById("enrollment-phone").value.trim();
-  const password = document.getElementById("enrollment-password").value;
-  const addressLine = document
-    .getElementById("enrollment-address")
-    .value.trim();
-  const country = document.getElementById("enrollment-country").value.trim();
-  const city = document.getElementById("enrollment-city").value.trim();
-  const pincode = document.getElementById("enrollment-pincode").value.trim();
 
   if (!plan) {
     statusNode.textContent = "Please choose a valid training plan.";
     return;
   }
 
-  if (!isStripeConfigured) {
-    statusNode.textContent =
-      "Stripe checkout is not configured right now. Add the Stripe secret key for this environment and try again.";
+  if (!email) {
+    statusNode.textContent = "Enter your email before checkout.";
     return;
   }
 
-  if (
-    !fullName ||
-    !email ||
-    !confirmEmail ||
-    !phoneNumber ||
-    !addressLine ||
-    !country ||
-    !city ||
-    !pincode
-  ) {
-    statusNode.textContent =
-      "Complete all required registration fields before checkout.";
-    return;
-  }
-
-  if (email !== confirmEmail) {
+  if (confirmEmail && email !== confirmEmail) {
     statusNode.textContent = "Email and confirm email must match.";
-    return;
-  }
-
-  if (phoneNumber.replace(/\D/g, "").length < 7) {
-    statusNode.textContent = "Enter a valid phone number.";
-    return;
-  }
-
-  if (password.length < 8) {
-    statusNode.textContent = "Use a password with at least 8 characters.";
-    return;
-  }
-
-  const checkoutReference = buildCheckoutReference();
-  const fallbackCheckoutUrl = buildPaymentLink(plan.key, {
-    email,
-    checkoutReference,
-  });
-
-  if (!fallbackCheckoutUrl) {
-    statusNode.textContent =
-      "Stripe checkout is not configured for this plan yet.";
     return;
   }
 
   submitButton.disabled = true;
   statusNode.textContent = "Sending verification email...";
-  localStorage.setItem("digrro_academy_email", email);
-  localStorage.setItem("digrro_academy_checkout_reference", checkoutReference);
-  localStorage.setItem("digrro_academy_selected_plan", plan.key);
 
-  try {
-    await requestEmailVerification(email, fallbackCheckoutUrl);
+  const registrationResult = await submitRegistration(email, plan.key);
+
+  if (registrationResult.alreadyExists === true) {
     statusNode.textContent =
-      "Verification email sent. Check your inbox before continuing to Stripe.";
-  } catch (error) {
-    console.error("Email verification request failed:", error);
-    statusNode.textContent =
-      error instanceof Error
-        ? error.message
-        : "Could not send the verification email.";
-    submitButton.disabled = false;
+      registrationResult.message || "This email is already registered";
+    submitButton.textContent = "Already registered";
+    window.setTimeout(() => {
+      window.location.href = getFrontendHomeUrl();
+    }, 1200);
+    return;
   }
+
+  if (registrationResult.alreadyPaid) {
+    statusNode.textContent =
+      registrationResult.message || "Payment already completed.";
+    submitButton.textContent = "Payment complete";
+    return;
+  }
+
+  if (registrationResult.ok) {
+    statusNode.textContent = "Verification email sent. Please check your inbox.";
+    submitButton.textContent = "Check your email";
+    return;
+  }
+
+  statusNode.textContent =
+    registrationResult.message ||
+    "Registration backend is unavailable. Please try again in a moment.";
+  submitButton.disabled = false;
 }
 
 function init() {

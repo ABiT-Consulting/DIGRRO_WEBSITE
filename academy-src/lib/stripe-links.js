@@ -32,8 +32,8 @@ export function getStripeCheckoutSummary() {
   }
 
   return stripeCheckoutMode === 'live'
-    ? 'Choose a plan, complete your registration details, and continue to secure Stripe checkout.'
-    : 'Choose a plan, complete your registration details, and continue to Stripe test checkout.';
+    ? 'Choose a plan, verify your email, and continue to secure Stripe checkout.'
+    : 'Choose a plan, verify your email, and continue to Stripe test checkout.';
 }
 
 export function buildPaymentLink(planKey, { email, checkoutReference } = {}) {

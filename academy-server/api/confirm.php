@@ -5,9 +5,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/bootstrap.php';
 
 $token = trim((string) ($_GET['token'] ?? ''));
-$title = 'Digrro Academy confirmation';
+$checkoutReference = trim((string) ($_GET['ref'] ?? ''));
+$title = 'Email verification';
 $message = 'This confirmation link is invalid or has expired.';
 $success = false;
+$checkoutUrl = '';
 
 if ($token !== '') {
     try {
@@ -27,7 +29,37 @@ if ($token !== '') {
             $update->execute(['id' => (int) $account['id']]);
 
             $success = true;
-            $message = 'Your email is confirmed. You can return to Digrro Academy and continue with your learning journey.';
+            $title = 'Email verified';
+            $message = 'Your email has been verified. Redirecting you to secure payment in a moment.';
+
+            if ($checkoutReference !== '') {
+                $enrollmentLookup = $pdo->prepare(
+                    'SELECT checkout_url
+                     FROM academy_enrollments
+                     WHERE account_id = :account_id
+                       AND checkout_reference = :checkout_reference
+                     ORDER BY id DESC
+                     LIMIT 1'
+                );
+                $enrollmentLookup->execute([
+                    'account_id' => (int) $account['id'],
+                    'checkout_reference' => $checkoutReference,
+                ]);
+            } else {
+                $enrollmentLookup = $pdo->prepare(
+                    'SELECT checkout_url
+                     FROM academy_enrollments
+                     WHERE account_id = :account_id
+                     ORDER BY id DESC
+                     LIMIT 1'
+                );
+                $enrollmentLookup->execute(['account_id' => (int) $account['id']]);
+            }
+
+            $enrollment = $enrollmentLookup->fetch();
+            if (is_array($enrollment) && is_string($enrollment['checkout_url'] ?? null)) {
+                $checkoutUrl = trim($enrollment['checkout_url']);
+            }
         }
     } catch (Throwable $error) {
         $message = 'We could not confirm your email right now. Please try the link again later.';
@@ -41,6 +73,9 @@ $academyUrl = academy_academy_base_url() . '/';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digrro Academy Email Confirmation</title>
+    <?php if ($success && $checkoutUrl !== ''): ?>
+      <meta http-equiv="refresh" content="3;url=<?php echo academy_escape_html($checkoutUrl); ?>" />
+    <?php endif; ?>
     <style>
       :root {
         color-scheme: dark;
@@ -114,10 +149,19 @@ $academyUrl = academy_academy_base_url() . '/';
   </head>
   <body>
     <main class="card">
-      <div class="status"><?php echo $success ? 'Confirmed' : 'Attention'; ?></div>
+      <div class="status"><?php echo $success ? 'Verified' : 'Attention'; ?></div>
       <h1><?php echo academy_escape_html($title); ?></h1>
       <p><?php echo academy_escape_html($message); ?></p>
-      <a class="button" href="<?php echo academy_escape_html($academyUrl); ?>">Return to Digrro Academy</a>
+      <?php if ($success && $checkoutUrl !== ''): ?>
+        <a class="button" href="<?php echo academy_escape_html($checkoutUrl); ?>">Continue to Payment</a>
+        <script>
+          window.setTimeout(function () {
+            window.location.href = <?php echo json_encode($checkoutUrl, JSON_UNESCAPED_SLASHES); ?>;
+          }, 2500);
+        </script>
+      <?php else: ?>
+        <a class="button" href="<?php echo academy_escape_html($academyUrl); ?>">Return to Digrro Academy</a>
+      <?php endif; ?>
     </main>
   </body>
 </html>

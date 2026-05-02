@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import Stripe from 'stripe';
 import { planEntries } from '../academy-src/lib/plans.js';
 
@@ -76,6 +76,15 @@ function trimTrailingSlash(value) {
   return String(value || '').replace(/\/+$/, '');
 }
 
+function isLocalhostUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1';
+  } catch (error) {
+    return false;
+  }
+}
+
 function inferStripeMode(secretKey) {
   if (secretKey.startsWith('sk_test_')) {
     return 'test';
@@ -86,10 +95,6 @@ function inferStripeMode(secretKey) {
   }
 
   return 'unknown';
-}
-
-function buildRedirectUrl(academyBaseUrl, planKey) {
-  return `${academyBaseUrl}/?checkout=success&plan=${encodeURIComponent(planKey)}`;
 }
 
 function paymentLinkEnvName(planKey) {
@@ -103,6 +108,97 @@ function isStripePaymentLinkUrl(value) {
   } catch (error) {
     return false;
   }
+}
+
+function hasCompletePaymentLinks(config) {
+  if (!config || typeof config !== 'object' || !config.links || typeof config.links !== 'object') {
+    return false;
+  }
+
+  return planEntries.every((plan) => isStripePaymentLinkUrl(config.links?.[plan.key]?.url));
+}
+
+async function readGeneratedLinksJson() {
+  if (!existsSync(generatedLinksJsonPath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(await readFile(generatedLinksJsonPath, 'utf8'));
+  } catch (error) {
+    return null;
+  }
+}
+
+async function importGeneratedLinksModule() {
+  if (!existsSync(generatedLinksModulePath)) {
+    return null;
+  }
+
+  try {
+    const moduleUrl = pathToFileURL(generatedLinksModulePath).href;
+    const generatedModule = await import(moduleUrl);
+    return generatedModule.stripePaymentLinks || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function loadExistingGeneratedLinks() {
+  const jsonConfig = await readGeneratedLinksJson();
+  if (hasCompletePaymentLinks(jsonConfig)) {
+    return jsonConfig;
+  }
+
+  const moduleConfig = await importGeneratedLinksModule();
+  if (hasCompletePaymentLinks(moduleConfig)) {
+    return moduleConfig;
+  }
+
+  return null;
+}
+
+function normalizeExistingLinks(config, academyBaseUrl) {
+  const existingBaseUrl = trimTrailingSlash(config.academyBaseUrl);
+  const requestedBaseUrl = trimTrailingSlash(academyBaseUrl);
+  const fallbackBaseUrl = !isLocalhostUrl(existingBaseUrl) && existingBaseUrl
+    ? existingBaseUrl
+    : (!isLocalhostUrl(requestedBaseUrl) ? requestedBaseUrl : '');
+  const links = {};
+
+  for (const plan of planEntries) {
+    links[plan.key] = {
+      productId: config.links[plan.key].productId || null,
+      priceId: config.links[plan.key].priceId || null,
+      paymentLinkId: config.links[plan.key].paymentLinkId || null,
+      url: trimTrailingSlash(config.links[plan.key].url)
+    };
+  }
+
+  return {
+    mode: config.mode || 'existing',
+    generatedAt: new Date().toISOString(),
+    academyBaseUrl: fallbackBaseUrl,
+    links
+  };
+}
+
+async function writeGeneratedConfig(config, label) {
+  await writeFile(generatedLinksModulePath, toModuleFile(config), 'utf8');
+  await writeFile(generatedLinksJsonPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+  console.log(`Saved ${label} to ${generatedLinksModulePath}`);
+  console.log(`Saved ${label} JSON to ${generatedLinksJsonPath}`);
+}
+
+async function writeExistingLinksFallback(academyBaseUrl, reason) {
+  const existingConfig = await loadExistingGeneratedLinks();
+  if (!existingConfig) {
+    return false;
+  }
+
+  console.warn(`${reason} Reusing the existing generated Stripe payment links.`);
+  await writeGeneratedConfig(normalizeExistingLinks(existingConfig, academyBaseUrl), 'existing Stripe payment links');
+  return true;
 }
 
 function buildManualLinks(localEnv, academyBaseUrl) {
@@ -126,7 +222,6 @@ function buildManualLinks(localEnv, academyBaseUrl) {
       productId: null,
       priceId: null,
       paymentLinkId: null,
-      redirectUrl: buildRedirectUrl(academyBaseUrl, plan.key),
       url: paymentLinkUrl
     };
   }
@@ -184,7 +279,6 @@ async function ensurePrice(stripe, productId, plan) {
 
 async function ensurePaymentLink(stripe, priceId, plan, academyBaseUrl) {
   const amountCents = Math.round(plan.amountUsd * 100);
-  const redirectUrl = buildRedirectUrl(academyBaseUrl, plan.key);
   const paymentLinks = await stripe.paymentLinks.list({ limit: 100 });
   const existingLink = paymentLinks.data.find(
     (link) =>
@@ -196,7 +290,12 @@ async function ensurePaymentLink(stripe, priceId, plan, academyBaseUrl) {
   );
 
   if (existingLink) {
-    return stripe.paymentLinks.retrieve(existingLink.id);
+    return stripe.paymentLinks.update(existingLink.id, {
+      after_completion: {
+        type: 'hosted_confirmation',
+        hosted_confirmation: {}
+      }
+    });
   }
 
   return stripe.paymentLinks.create({
@@ -207,10 +306,8 @@ async function ensurePaymentLink(stripe, priceId, plan, academyBaseUrl) {
       }
     ],
     after_completion: {
-      type: 'redirect',
-      redirect: {
-        url: redirectUrl
-      }
+      type: 'hosted_confirmation',
+      hosted_confirmation: {}
     },
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
@@ -234,15 +331,23 @@ function toModuleFile(config) {
 
 async function main() {
   const localEnv = await loadLocalEnvFiles();
-  const devPort = Number(pickEnv(localEnv, 'VITE_DEV_PORT')) || 5174;
-  const stripeSecretKey = pickEnv(localEnv, 'STRIPE_SECRET_KEY', 'Secret key');
-  const academyBaseUrl = trimTrailingSlash(pickEnv(localEnv, 'ACADEMY_BASE_URL', 'VITE_ACADEMY_BASE_URL')) || `http://localhost:${devPort}`;
+  const stripeSecretKey = pickEnv(localEnv, 'STRIPE_SECRET_KEY', 'STRIPE_SECRET', 'Secret key');
+  const academyBaseUrl = trimTrailingSlash(pickEnv(localEnv, 'FRONTEND_URL', 'ACADEMY_BASE_URL', 'VITE_ACADEMY_BASE_URL'));
+
+  if (!academyBaseUrl) {
+    throw new Error('FRONTEND_URL is required for Stripe payment link metadata.');
+  }
 
   if (!stripeSecretKey) {
     const manualConfig = buildManualLinks(localEnv, academyBaseUrl);
 
     if (manualConfig.missingEnvNames.length > 0) {
-      throw new Error(`Missing Stripe configuration. Set STRIPE_SECRET_KEY to auto-create Payment Links, or set these existing Payment Link URLs in .env.local: ${manualConfig.missingEnvNames.join(', ')}.`);
+      const reason = `Missing Stripe configuration (${manualConfig.missingEnvNames.join(', ')}).`;
+      if (await writeExistingLinksFallback(academyBaseUrl, reason)) {
+        return;
+      }
+
+      throw new Error(`Missing Stripe configuration. Set STRIPE_SECRET_KEY to auto-create Payment Links, or set STRIPE_SECRET for compatibility, or set these existing Payment Link URLs in .env.local: ${manualConfig.missingEnvNames.join(', ')}.`);
     }
 
     const generatedConfig = {
@@ -252,10 +357,7 @@ async function main() {
       links: manualConfig.links
     };
 
-    await writeFile(generatedLinksModulePath, toModuleFile(generatedConfig), 'utf8');
-    await writeFile(generatedLinksJsonPath, JSON.stringify(generatedConfig, null, 2) + '\n', 'utf8');
-    console.log(`Saved manual Stripe payment links to ${generatedLinksModulePath}`);
-    console.log(`Saved manual Stripe payment links JSON to ${generatedLinksJsonPath}`);
+    await writeGeneratedConfig(generatedConfig, 'manual Stripe payment links');
     return;
   }
 
@@ -263,20 +365,28 @@ async function main() {
   const stripe = new Stripe(stripeSecretKey);
   const links = {};
 
-  for (const plan of planEntries) {
-    const product = await ensureProduct(stripe, plan);
-    const price = await ensurePrice(stripe, product.id, plan);
-    const paymentLink = await ensurePaymentLink(stripe, price.id, plan, academyBaseUrl);
+  try {
+    for (const plan of planEntries) {
+      const product = await ensureProduct(stripe, plan);
+      const price = await ensurePrice(stripe, product.id, plan);
+      const paymentLink = await ensurePaymentLink(stripe, price.id, plan, academyBaseUrl);
 
-    links[plan.key] = {
-      productId: product.id,
-      priceId: price.id,
-      paymentLinkId: paymentLink.id,
-      redirectUrl: buildRedirectUrl(academyBaseUrl, plan.key),
-      url: paymentLink.url
-    };
+      links[plan.key] = {
+        productId: product.id,
+        priceId: price.id,
+        paymentLinkId: paymentLink.id,
+        url: paymentLink.url
+      };
 
-    console.log(`Stripe ${stripeMode} link ready for ${plan.key}: ${paymentLink.url}`);
+      console.log(`Stripe ${stripeMode} link ready for ${plan.key}: ${paymentLink.url}`);
+    }
+  } catch (error) {
+    const reason = `Stripe sync failed: ${error instanceof Error ? error.message : error}.`;
+    if (await writeExistingLinksFallback(academyBaseUrl, reason)) {
+      return;
+    }
+
+    throw error;
   }
 
   const generatedConfig = {
@@ -286,10 +396,7 @@ async function main() {
     links
   };
 
-  await writeFile(generatedLinksModulePath, toModuleFile(generatedConfig), 'utf8');
-  await writeFile(generatedLinksJsonPath, JSON.stringify(generatedConfig, null, 2) + '\n', 'utf8');
-  console.log(`Saved generated Stripe payment links to ${generatedLinksModulePath}`);
-  console.log(`Saved generated Stripe payment links JSON to ${generatedLinksJsonPath}`);
+  await writeGeneratedConfig(generatedConfig, 'generated Stripe payment links');
 }
 
 main().catch((error) => {

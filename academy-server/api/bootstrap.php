@@ -118,7 +118,7 @@ function academy_normalize_email(string $value): string
 
 function academy_academy_base_url(): string
 {
-    $configured = academy_env(['ACADEMY_BASE_URL']);
+    $configured = academy_env(['FRONTEND_URL', 'ACADEMY_BASE_URL']);
     if (is_string($configured) && $configured !== '') {
         return rtrim($configured, '/');
     }
@@ -135,9 +135,14 @@ function academy_academy_base_url(): string
     return $scheme . '://' . $host . rtrim($academyPath, '/');
 }
 
-function academy_confirmation_url(string $token): string
+function academy_confirmation_url(string $token, ?string $checkoutReference = null): string
 {
-    return academy_academy_base_url() . '/api/confirm.php?token=' . urlencode($token);
+    $queryParams = ['token' => $token];
+    if (is_string($checkoutReference) && trim($checkoutReference) !== '') {
+        $queryParams['ref'] = trim($checkoutReference);
+    }
+
+    return academy_academy_base_url() . '/api/confirm.php?' . http_build_query($queryParams);
 }
 
 function academy_generated_payment_links(): array
@@ -409,7 +414,10 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
     $fromName = academy_env(['SMTP_FROM_NAME'], 'Digrro Academy') ?: 'Digrro Academy';
 
     $subject = academy_mail_header_value('Confirm your Digrro Academy registration');
-    $confirmationUrl = academy_confirmation_url((string) $recipient['email_confirmation_token']);
+    $confirmationUrl = academy_confirmation_url(
+        (string) $recipient['email_confirmation_token'],
+        (string) ($recipient['checkout_reference'] ?? '')
+    );
     $body = implode("\n", [
         'Hi ' . $recipient['full_name'] . ',',
         '',
@@ -417,6 +425,8 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
         '',
         'Confirmation link:',
         $confirmationUrl,
+        '',
+        'After confirming your email, you will be redirected to secure Stripe checkout.',
         '',
         'Plan: ' . $plan['label'],
         'Checkout reference: ' . $recipient['checkout_reference'],

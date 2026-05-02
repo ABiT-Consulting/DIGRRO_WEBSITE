@@ -23,8 +23,11 @@ Local development can keep the Stripe test secret in `.env.local` so GitHub push
 
 The Stripe sync script reads these keys:
 
+- `STRIPE_SECRET_KEY`
+- `STRIPE_SECRET` (compatibility alias)
 - `Publishable key`
 - `Secret key`
+- `FRONTEND_URL`
 - `ACADEMY_BASE_URL`
 
 If you already created Stripe Payment Links in the Stripe Dashboard and do not want the local sync script to use a Stripe secret key, add these URLs to `.env.local` instead:

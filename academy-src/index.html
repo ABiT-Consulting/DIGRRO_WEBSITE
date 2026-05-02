@@ -323,7 +323,7 @@
           <button class="modal-close" id="modal-close" aria-label="Close">×</button>
           <div class="section-kicker">Account-linked checkout</div>
           <h2 id="selected-plan-name">Selected plan</h2>
-          <p class="auth-copy">Complete your registration details before checkout so Digrro can confirm your enrollment against the right email, phone number, and address details.</p>
+          <p class="auth-copy">Enter your email before checkout so Digrro can send your verification link.</p>
           <div class="proof-strip" style="margin-top: 1rem;">
             <span class="proof-pill" id="selected-plan-amount">$0</span>
             <span class="proof-pill" id="selected-plan-meta">Plan details</span>
@@ -333,7 +333,7 @@
             <div class="form-grid">
               <div class="field full">
                 <label for="enrollment-name">Full name</label>
-                <input id="enrollment-name" name="fullName" type="text" autocomplete="name" required />
+                <input id="enrollment-name" name="fullName" type="text" autocomplete="name" />
               </div>
               <div class="field">
                 <label for="enrollment-email">Email</label>
@@ -341,11 +341,11 @@
               </div>
               <div class="field">
                 <label for="enrollment-email-confirm">Confirm email</label>
-                <input id="enrollment-email-confirm" name="confirmEmail" type="email" autocomplete="email" required />
+                <input id="enrollment-email-confirm" name="confirmEmail" type="email" autocomplete="email" />
               </div>
               <div class="field">
                 <label for="enrollment-phone">Phone number</label>
-                <input id="enrollment-phone" name="phoneNumber" type="tel" autocomplete="tel" required />
+                <input id="enrollment-phone" name="phoneNumber" type="tel" autocomplete="tel" />
               </div>
               <div class="field">
                 <label for="enrollment-password">Password</label>
@@ -353,26 +353,26 @@
               </div>
               <div class="field full">
                 <label for="enrollment-address">Address</label>
-                <input id="enrollment-address" name="address" type="text" autocomplete="street-address" required />
+                <input id="enrollment-address" name="address" type="text" autocomplete="street-address" />
               </div>
               <div class="field">
                 <label for="enrollment-country">Country</label>
-                <input id="enrollment-country" name="country" type="text" autocomplete="country-name" required />
+                <input id="enrollment-country" name="country" type="text" autocomplete="country-name" />
               </div>
               <div class="field">
                 <label for="enrollment-city">City</label>
-                <input id="enrollment-city" name="city" type="text" autocomplete="address-level2" required />
+                <input id="enrollment-city" name="city" type="text" autocomplete="address-level2" />
               </div>
               <div class="field">
                 <label for="enrollment-pincode">Pincode</label>
-                <input id="enrollment-pincode" name="pincode" type="text" autocomplete="postal-code" required />
+                <input id="enrollment-pincode" name="pincode" type="text" autocomplete="postal-code" />
               </div>
               <div class="field full">
                 <label for="enrollment-company">Company or team name</label>
                 <input id="enrollment-company" name="company" type="text" autocomplete="organization" />
               </div>
             </div>
-            <div class="form-help">Digrro will send your confirmation email from system@digrro.com. Keep the same email and password for future academy access and enrollment follow-up.</div>
+            <div class="form-help">Digrro will send your confirmation email from system@digrro.com. Use the same email for checkout and enrollment follow-up.</div>
             <div class="auth-status" id="enrollment-status">Choose a plan to continue.</div>
             <div class="form-actions">
               <button class="form-button is-primary" type="submit" id="enrollment-submit">Continue to Stripe</button>
@@ -384,9 +384,3 @@
     </div>
   </body>
 </html>
-
-<div id="verified-success" style="display:none; text-align:center; padding:60px;">
-  <h2>✅ Email Verified</h2>
-  <p>Your email has been successfully verified.</p>
-  <button id="goToStripe">Continue to Payment</button>
-</div>

@@ -270,9 +270,13 @@ try {
         'checkoutUrl' => $checkoutUrl,
         'emailVerificationRequired' => $emailVerificationRequired,
         'emailVerificationSent' => $emailVerificationSent,
-        'message' => $emailVerificationSent
-            ? 'Your registration is saved. We sent a confirmation email from system@digrro.com. Continuing to Stripe now.'
-            : 'Your registration is saved. Continuing to Stripe now.'
+        'message' => $emailVerificationRequired
+            ? (
+                $emailVerificationSent
+                    ? 'Your registration is saved. We sent a verification email from system@digrro.com. Open that email to verify, then you will be redirected to Stripe.'
+                    : 'Your registration is saved, but we could not send the verification email right now. Please try again in a moment.'
+              )
+            : 'Your email is already verified. Continuing to Stripe now.'
     ]);
 } catch (Throwable $error) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
