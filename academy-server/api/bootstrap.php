@@ -228,7 +228,7 @@ function academy_plans(): array
         'sprint' => [
             'key' => 'sprint',
             'label' => 'AI Marketing Sprint',
-            'amountUsd' => 200,
+            'amountUsd' => 10,
             'checkoutUrl' => academy_checkout_url_for_plan('sprint')
         ],
         'bootcamp' => [

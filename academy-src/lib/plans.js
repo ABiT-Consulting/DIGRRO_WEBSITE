@@ -2,8 +2,8 @@ export const plans = {
   sprint: {
     key: 'sprint',
     label: 'AI Marketing Sprint',
-    amountUsd: 200,
-    priceText: '$200',
+    amountUsd: 10,
+    priceText: '$10',
     meta: 'Per seat public cohort or $1,750 for a private team workshop',
     checkoutDescription: 'Live AI marketing workshop for campaign planning, copy, and content workflow acceleration.'
   },
