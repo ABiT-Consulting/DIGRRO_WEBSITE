@@ -31,7 +31,7 @@ if ($baseCheckoutUrl === '') {
 
 $fullName = trim((string) ($payload['fullName'] ?? ''));
 $email = academy_normalize_email((string) ($payload['email'] ?? ''));
-$confirmEmail = academy_normalize_email((string) ($payload['confirmEmail'] ?? ''));
+$confirmEmail = academy_normalize_email((string) ($payload['confirmEmail'] ?? $payload['email'] ?? ''));
 $phoneNumber = trim((string) ($payload['phoneNumber'] ?? ''));
 $password = (string) ($payload['password'] ?? '');
 $addressLine = trim((string) ($payload['addressLine'] ?? ''));
@@ -43,21 +43,28 @@ $checkoutReference = trim((string) ($payload['checkoutReference'] ?? ''));
 $sendConfirmationEmail = filter_var($payload['sendConfirmationEmail'] ?? false, FILTER_VALIDATE_BOOLEAN);
 $checkoutUrl = academy_build_checkout_url($baseCheckoutUrl, $email, $checkoutReference, $plan['key']);
 
-if (
-    $fullName === ''
-    || $email === ''
-    || $confirmEmail === ''
-    || $phoneNumber === ''
-    || $password === ''
-    || $addressLine === ''
-    || $country === ''
-    || $city === ''
-    || $pincode === ''
-    || $checkoutReference === ''
-) {
+$requiredFields = [
+    'fullName' => $fullName,
+    'email' => $email,
+    'confirmEmail' => $confirmEmail,
+    'phoneNumber' => $phoneNumber,
+    'password' => $password,
+    'addressLine' => $addressLine,
+    'country' => $country,
+    'city' => $city,
+    'pincode' => $pincode,
+    'checkoutReference' => $checkoutReference,
+];
+$missingFields = array_keys(array_filter(
+    $requiredFields,
+    static fn ($value): bool => trim((string) $value) === ''
+));
+
+if ($missingFields !== []) {
     academy_json_response(400, [
         'ok' => false,
-        'message' => 'Complete all required registration fields before checkout.'
+        'message' => 'Complete all required registration fields before checkout.',
+        'missingFields' => $missingFields
     ]);
 }
 
@@ -282,6 +289,8 @@ try {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
+
+    error_log('Digrro Academy registration failed: ' . $error->getMessage());
 
     academy_json_response(500, [
         'ok' => false,

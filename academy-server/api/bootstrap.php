@@ -302,6 +302,24 @@ function academy_pdo(): PDO
         )'
     );
 
+    academy_ensure_table_columns($pdo, 'academy_accounts', [
+        'email' => 'TEXT',
+        'email_normalized' => 'TEXT',
+        'full_name' => 'TEXT',
+        'phone_number' => 'TEXT',
+        'address_line' => 'TEXT',
+        'country' => 'TEXT',
+        'city' => 'TEXT',
+        'pincode' => 'TEXT',
+        'company' => 'TEXT',
+        'password_hash' => 'TEXT',
+        'email_confirmation_token' => 'TEXT',
+        'email_confirmation_sent_at' => 'TEXT',
+        'email_confirmed_at' => 'TEXT',
+        'created_at' => 'TEXT',
+        'updated_at' => 'TEXT',
+    ]);
+
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS academy_enrollments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -326,11 +344,50 @@ function academy_pdo(): PDO
         )'
     );
 
+    academy_ensure_table_columns($pdo, 'academy_enrollments', [
+        'account_id' => 'INTEGER',
+        'email' => 'TEXT',
+        'full_name' => 'TEXT',
+        'phone_number' => 'TEXT',
+        'address_line' => 'TEXT',
+        'country' => 'TEXT',
+        'city' => 'TEXT',
+        'pincode' => 'TEXT',
+        'company' => 'TEXT',
+        'plan_key' => 'TEXT',
+        'plan_name' => 'TEXT',
+        'amount_usd' => 'REAL',
+        'checkout_url' => 'TEXT',
+        'checkout_reference' => 'TEXT',
+        'payment_status' => 'TEXT DEFAULT "payment_pending"',
+        'academic_status' => 'TEXT DEFAULT "awaiting_payment"',
+        'created_at' => 'TEXT',
+    ]);
+
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_email_normalized_idx ON academy_accounts(email_normalized)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_account_id_idx ON academy_enrollments(account_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_email_idx ON academy_enrollments(email)');
 
     return $pdo;
+}
+
+function academy_ensure_table_columns(PDO $pdo, string $tableName, array $columns): void
+{
+    $existingColumns = [];
+    $statement = $pdo->query('PRAGMA table_info(' . $tableName . ')');
+    foreach ($statement->fetchAll() as $column) {
+        if (isset($column['name'])) {
+            $existingColumns[(string) $column['name']] = true;
+        }
+    }
+
+    foreach ($columns as $columnName => $definition) {
+        if (isset($existingColumns[$columnName])) {
+            continue;
+        }
+
+        $pdo->exec('ALTER TABLE ' . $tableName . ' ADD COLUMN ' . $columnName . ' ' . $definition);
+    }
 }
 
 function academy_find_account(PDO $pdo, string $normalizedEmail): ?array
