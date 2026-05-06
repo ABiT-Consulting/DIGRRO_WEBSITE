@@ -118,7 +118,7 @@ function academy_normalize_email(string $value): string
 
 function academy_academy_base_url(): string
 {
-    $configured = academy_env(['ACADEMY_BASE_URL']);
+    $configured = academy_env(['FRONTEND_URL', 'ACADEMY_BASE_URL']);
     if (is_string($configured) && $configured !== '') {
         return rtrim($configured, '/');
     }
@@ -135,9 +135,14 @@ function academy_academy_base_url(): string
     return $scheme . '://' . $host . rtrim($academyPath, '/');
 }
 
-function academy_confirmation_url(string $token): string
+function academy_confirmation_url(string $token, ?string $checkoutReference = null): string
 {
-    return academy_academy_base_url() . '/api/confirm.php?token=' . urlencode($token);
+    $queryParams = ['token' => $token];
+    if (is_string($checkoutReference) && trim($checkoutReference) !== '') {
+        $queryParams['ref'] = trim($checkoutReference);
+    }
+
+    return academy_academy_base_url() . '/api/confirm.php?' . http_build_query($queryParams);
 }
 
 function academy_generated_payment_links(): array
@@ -223,7 +228,7 @@ function academy_plans(): array
         'sprint' => [
             'key' => 'sprint',
             'label' => 'AI Marketing Sprint',
-            'amountUsd' => 200,
+            'amountUsd' => 10,
             'checkoutUrl' => academy_checkout_url_for_plan('sprint')
         ],
         'bootcamp' => [
@@ -297,6 +302,24 @@ function academy_pdo(): PDO
         )'
     );
 
+    academy_ensure_table_columns($pdo, 'academy_accounts', [
+        'email' => 'TEXT',
+        'email_normalized' => 'TEXT',
+        'full_name' => 'TEXT',
+        'phone_number' => 'TEXT',
+        'address_line' => 'TEXT',
+        'country' => 'TEXT',
+        'city' => 'TEXT',
+        'pincode' => 'TEXT',
+        'company' => 'TEXT',
+        'password_hash' => 'TEXT',
+        'email_confirmation_token' => 'TEXT',
+        'email_confirmation_sent_at' => 'TEXT',
+        'email_confirmed_at' => 'TEXT',
+        'created_at' => 'TEXT',
+        'updated_at' => 'TEXT',
+    ]);
+
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS academy_enrollments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -321,11 +344,50 @@ function academy_pdo(): PDO
         )'
     );
 
+    academy_ensure_table_columns($pdo, 'academy_enrollments', [
+        'account_id' => 'INTEGER',
+        'email' => 'TEXT',
+        'full_name' => 'TEXT',
+        'phone_number' => 'TEXT',
+        'address_line' => 'TEXT',
+        'country' => 'TEXT',
+        'city' => 'TEXT',
+        'pincode' => 'TEXT',
+        'company' => 'TEXT',
+        'plan_key' => 'TEXT',
+        'plan_name' => 'TEXT',
+        'amount_usd' => 'REAL',
+        'checkout_url' => 'TEXT',
+        'checkout_reference' => 'TEXT',
+        'payment_status' => 'TEXT DEFAULT "payment_pending"',
+        'academic_status' => 'TEXT DEFAULT "awaiting_payment"',
+        'created_at' => 'TEXT',
+    ]);
+
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_email_normalized_idx ON academy_accounts(email_normalized)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_account_id_idx ON academy_enrollments(account_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_email_idx ON academy_enrollments(email)');
 
     return $pdo;
+}
+
+function academy_ensure_table_columns(PDO $pdo, string $tableName, array $columns): void
+{
+    $existingColumns = [];
+    $statement = $pdo->query('PRAGMA table_info(' . $tableName . ')');
+    foreach ($statement->fetchAll() as $column) {
+        if (isset($column['name'])) {
+            $existingColumns[(string) $column['name']] = true;
+        }
+    }
+
+    foreach ($columns as $columnName => $definition) {
+        if (isset($existingColumns[$columnName])) {
+            continue;
+        }
+
+        $pdo->exec('ALTER TABLE ' . $tableName . ' ADD COLUMN ' . $columnName . ' ' . $definition);
+    }
 }
 
 function academy_find_account(PDO $pdo, string $normalizedEmail): ?array
@@ -409,7 +471,10 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
     $fromName = academy_env(['SMTP_FROM_NAME'], 'Digrro Academy') ?: 'Digrro Academy';
 
     $subject = academy_mail_header_value('Confirm your Digrro Academy registration');
-    $confirmationUrl = academy_confirmation_url((string) $recipient['email_confirmation_token']);
+    $confirmationUrl = academy_confirmation_url(
+        (string) $recipient['email_confirmation_token'],
+        (string) ($recipient['checkout_reference'] ?? '')
+    );
     $body = implode("\n", [
         'Hi ' . $recipient['full_name'] . ',',
         '',
@@ -417,6 +482,8 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
         '',
         'Confirmation link:',
         $confirmationUrl,
+        '',
+        'After confirming your email, you will be redirected to secure Stripe checkout.',
         '',
         'Plan: ' . $plan['label'],
         'Checkout reference: ' . $recipient['checkout_reference'],

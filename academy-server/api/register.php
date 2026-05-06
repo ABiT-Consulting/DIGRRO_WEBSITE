@@ -21,9 +21,17 @@ if ($plan === null) {
     ]);
 }
 
+$baseCheckoutUrl = trim((string) ($plan['checkoutUrl'] ?? ''));
+if ($baseCheckoutUrl === '') {
+    academy_json_response(503, [
+        'ok' => false,
+        'message' => 'Stripe checkout is not configured for this plan right now.'
+    ]);
+}
+
 $fullName = trim((string) ($payload['fullName'] ?? ''));
 $email = academy_normalize_email((string) ($payload['email'] ?? ''));
-$confirmEmail = academy_normalize_email((string) ($payload['confirmEmail'] ?? ''));
+$confirmEmail = academy_normalize_email((string) ($payload['confirmEmail'] ?? $payload['email'] ?? ''));
 $phoneNumber = trim((string) ($payload['phoneNumber'] ?? ''));
 $password = (string) ($payload['password'] ?? '');
 $addressLine = trim((string) ($payload['addressLine'] ?? ''));
@@ -32,22 +40,38 @@ $city = trim((string) ($payload['city'] ?? ''));
 $pincode = trim((string) ($payload['pincode'] ?? ''));
 $company = trim((string) ($payload['company'] ?? ''));
 $checkoutReference = trim((string) ($payload['checkoutReference'] ?? ''));
+$sendConfirmationEmail = filter_var($payload['sendConfirmationEmail'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$checkoutUrl = academy_build_checkout_url($baseCheckoutUrl, $email, $checkoutReference, $plan['key']);
 
-if (
-    $fullName === ''
-    || $email === ''
-    || $confirmEmail === ''
-    || $phoneNumber === ''
-    || $password === ''
-    || $addressLine === ''
-    || $country === ''
-    || $city === ''
-    || $pincode === ''
-    || $checkoutReference === ''
-) {
+$requiredFields = [
+    'fullName' => $fullName,
+    'email' => $email,
+    'confirmEmail' => $confirmEmail,
+    'phoneNumber' => $phoneNumber,
+    'password' => $password,
+    'addressLine' => $addressLine,
+    'country' => $country,
+    'city' => $city,
+    'pincode' => $pincode,
+    'checkoutReference' => $checkoutReference,
+];
+$missingFields = array_keys(array_filter(
+    $requiredFields,
+    static fn ($value): bool => trim((string) $value) === ''
+));
+
+if ($missingFields !== []) {
     academy_json_response(400, [
         'ok' => false,
-        'message' => 'Complete all required registration fields before checkout.'
+        'message' => 'Complete all required registration fields before checkout.',
+        'missingFields' => $missingFields
+    ]);
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    academy_json_response(400, [
+        'ok' => false,
+        'message' => 'Enter a valid email address.'
     ]);
 }
 
@@ -80,6 +104,8 @@ try {
 
     $account = academy_find_account($pdo, $email);
     $shouldSendConfirmation = false;
+    $emailVerificationRequired = false;
+    $emailVerificationSent = false;
     $confirmationToken = null;
     $accountId = null;
 
@@ -92,8 +118,10 @@ try {
             ]);
         }
 
-        $shouldSendConfirmation = empty($account['email_confirmed_at']);
-        $confirmationToken = $shouldSendConfirmation ? bin2hex(random_bytes(32)) : (string) ($account['email_confirmation_token'] ?? '');
+        $needsEmailConfirmation = empty($account['email_confirmed_at']);
+        $emailVerificationRequired = $needsEmailConfirmation;
+        $shouldSendConfirmation = $sendConfirmationEmail && $needsEmailConfirmation;
+        $confirmationToken = $needsEmailConfirmation ? bin2hex(random_bytes(32)) : (string) ($account['email_confirmation_token'] ?? '');
         $accountId = (int) $account['id'];
 
         $updateAccount = $pdo->prepare(
@@ -124,7 +152,8 @@ try {
             'id' => $accountId,
         ]);
     } else {
-        $shouldSendConfirmation = true;
+        $emailVerificationRequired = true;
+        $shouldSendConfirmation = $sendConfirmationEmail;
         $confirmationToken = bin2hex(random_bytes(32));
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
@@ -154,7 +183,7 @@ try {
                 :company,
                 :password_hash,
                 :email_confirmation_token,
-                CURRENT_TIMESTAMP
+                :email_confirmation_sent_at
             )'
         );
 
@@ -170,6 +199,7 @@ try {
             'company' => $company !== '' ? $company : null,
             'password_hash' => $passwordHash,
             'email_confirmation_token' => $confirmationToken,
+            'email_confirmation_sent_at' => $shouldSendConfirmation ? date('Y-m-d H:i:s') : null,
         ]);
 
         $accountId = (int) $pdo->lastInsertId();
@@ -222,32 +252,45 @@ try {
         'plan_key' => $plan['key'],
         'plan_name' => $plan['label'],
         'amount_usd' => $plan['amountUsd'],
-        'checkout_url' => $plan['checkoutUrl'],
+        'checkout_url' => $checkoutUrl,
         'checkout_reference' => $checkoutReference,
     ]);
 
-    if ($shouldSendConfirmation) {
-        academy_send_confirmation_email([
-            'email' => $email,
-            'full_name' => $fullName,
-            'email_confirmation_token' => $confirmationToken,
-            'checkout_reference' => $checkoutReference,
-        ], $plan);
-    }
-
     $pdo->commit();
+
+    if ($shouldSendConfirmation && is_string($confirmationToken) && $confirmationToken !== '') {
+        try {
+            academy_send_confirmation_email([
+                'email' => $email,
+                'full_name' => $fullName,
+                'email_confirmation_token' => $confirmationToken,
+                'checkout_reference' => $checkoutReference,
+            ], $plan);
+            $emailVerificationSent = true;
+        } catch (Throwable $emailError) {
+            error_log('Digrro Academy confirmation email failed: ' . $emailError->getMessage());
+        }
+    }
 
     academy_json_response(200, [
         'ok' => true,
-        'checkoutUrl' => $plan['checkoutUrl'],
-        'message' => $shouldSendConfirmation
-            ? 'Your registration is saved. We sent a confirmation email from system@digrro.com. Continuing to Wise now.'
-            : 'Your registration is saved. Continuing to Wise now.'
+        'checkoutUrl' => $checkoutUrl,
+        'emailVerificationRequired' => $emailVerificationRequired,
+        'emailVerificationSent' => $emailVerificationSent,
+        'message' => $emailVerificationRequired
+            ? (
+                $emailVerificationSent
+                    ? 'Your registration is saved. We sent a verification email from system@digrro.com. Open that email to verify, then you will be redirected to Stripe.'
+                    : 'Your registration is saved, but we could not send the verification email right now. Please try again in a moment.'
+              )
+            : 'Your email is already verified. Continuing to Stripe now.'
     ]);
 } catch (Throwable $error) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
+
+    error_log('Digrro Academy registration failed: ' . $error->getMessage());
 
     academy_json_response(500, [
         'ok' => false,
