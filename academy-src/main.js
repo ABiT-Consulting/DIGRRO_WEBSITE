@@ -4,13 +4,29 @@ import {
   getStripeCheckoutSummary,
 } from "./lib/stripe-links.js";
 
-const registrationApiUrl = "http://localhost:3000/register";
-const checkoutUrlApiUrl = "http://localhost:3000/checkout-url";
+function getConfiguredApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_ACADEMY_API_BASE_URL || "";
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  return import.meta.env.DEV ? "http://127.0.0.1:3000" : "";
+}
+
+function getRelativeApiUrl(fileName) {
+  return new URL(`api/${fileName}`, window.location.href).toString();
+}
+
+const apiBaseUrl = getConfiguredApiBaseUrl();
+const registrationApiUrl = apiBaseUrl
+  ? `${apiBaseUrl}/register`
+  : getRelativeApiUrl("register.php");
+const checkoutUrlApiUrl = apiBaseUrl ? `${apiBaseUrl}/checkout-url` : "";
 let lastModalTrigger = null;
 
 function getFrontendHomeUrl() {
-  const frontendUrl =
-    typeof process !== "undefined" ? process.env?.FRONTEND_URL : "";
+  const frontendUrl = import.meta.env.VITE_FRONTEND_URL || "";
 
   return frontendUrl || "/";
 }
@@ -102,6 +118,10 @@ async function fetchCheckoutUrl(token) {
     throw new Error("Missing verification token.");
   }
 
+  if (!checkoutUrlApiUrl) {
+    throw new Error("Checkout URL lookup is not configured.");
+  }
+
   const url = new URL(checkoutUrlApiUrl);
   url.searchParams.set("token", token);
 
@@ -190,15 +210,48 @@ function closeModal() {
   lastModalTrigger = null;
 }
 
-async function submitRegistration(email, planKey) {
+function createCheckoutReference(planKey) {
+  const timestamp = Date.now().toString(36);
+  if (window.crypto?.randomUUID) {
+    return `${planKey}-${timestamp}-${window.crypto.randomUUID()}`;
+  }
+
+  return `${planKey}-${timestamp}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function getFormValue(formData, key) {
+  return String(formData.get(key) || "").trim();
+}
+
+function getRegistrationPayload(form, planKey) {
+  const formData = new FormData(form);
+
+  return {
+    planKey,
+    fullName: getFormValue(formData, "fullName"),
+    email: getFormValue(formData, "email").toLowerCase(),
+    confirmEmail: getFormValue(formData, "confirmEmail").toLowerCase(),
+    phoneNumber: getFormValue(formData, "phoneNumber"),
+    password: String(formData.get("password") || ""),
+    addressLine: getFormValue(formData, "address"),
+    country: getFormValue(formData, "country"),
+    city: getFormValue(formData, "city"),
+    pincode: getFormValue(formData, "pincode"),
+    company: getFormValue(formData, "company"),
+    checkoutReference: createCheckoutReference(planKey),
+    sendConfirmationEmail: true,
+  };
+}
+
+async function submitRegistration(requestPayload) {
   try {
     const response = await fetch(registrationApiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Plan-Key": planKey,
+        "X-Plan-Key": requestPayload.planKey,
       },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(requestPayload),
     });
 
     const contentType = response.headers.get("content-type") || "";
@@ -206,18 +259,20 @@ async function submitRegistration(email, planKey) {
       return { ok: false };
     }
 
-    const payload = await response.json();
-    const requestSucceeded = Boolean(payload?.ok || payload?.success);
+    const responsePayload = await response.json();
+    const requestSucceeded = Boolean(
+      responsePayload?.ok || responsePayload?.success,
+    );
     if (!response.ok || !requestSucceeded) {
       return {
         ok: false,
         message:
-          payload?.message ||
+          responsePayload?.message ||
           "Registration backend did not accept the request.",
       };
     }
 
-    return { ...payload, ok: true };
+    return { ...responsePayload, ok: true };
   } catch (error) {
     return {
       ok: false,
@@ -294,29 +349,27 @@ function bindModal() {
 async function handleEnrollmentSubmit(event) {
   event.preventDefault();
 
+  const form = event.currentTarget;
   const statusNode = document.getElementById("enrollment-status");
   const submitButton = document.getElementById("enrollment-submit");
   const plan = getPlan(document.getElementById("selected-plan-key").value);
-  const email = document
-    .getElementById("enrollment-email")
-    .value.trim()
-    .toLowerCase();
-  const confirmEmail = document
-    .getElementById("enrollment-email-confirm")
-    .value.trim()
-    .toLowerCase();
 
   if (!plan) {
     statusNode.textContent = "Please choose a valid training plan.";
     return;
   }
 
-  if (!email) {
+  const registrationPayload = getRegistrationPayload(form, plan.key);
+
+  if (!registrationPayload.email) {
     statusNode.textContent = "Enter your email before checkout.";
     return;
   }
 
-  if (confirmEmail && email !== confirmEmail) {
+  if (
+    registrationPayload.confirmEmail &&
+    registrationPayload.email !== registrationPayload.confirmEmail
+  ) {
     statusNode.textContent = "Email and confirm email must match.";
     return;
   }
@@ -324,7 +377,7 @@ async function handleEnrollmentSubmit(event) {
   submitButton.disabled = true;
   statusNode.textContent = "Sending verification email...";
 
-  const registrationResult = await submitRegistration(email, plan.key);
+  const registrationResult = await submitRegistration(registrationPayload);
 
   if (registrationResult.alreadyExists === true) {
     statusNode.textContent =
