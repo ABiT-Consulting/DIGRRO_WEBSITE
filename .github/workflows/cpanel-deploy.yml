@@ -47,8 +47,9 @@ jobs:
 
           export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-$repo_stripe_secret}}"
           export ACADEMY_BASE_URL="${ACADEMY_BASE_URL_SECRET:-${repo_academy_base_url:-https://digrro.com/academy}}"
-
-          : "${STRIPE_SECRET_KEY:?Missing Stripe secret. Set GitHub secret STRIPE_SECRET_KEY_LIVE or STRIPE_SECRET_KEY, or populate Secret key= in .env}"
+          export STRIPE_PAYMENT_LINK_SPRINT="https://buy.stripe.com/7sY28s2pzaY25a33OsbQY05"
+          export STRIPE_PAYMENT_LINK_BOOTCAMP="https://buy.stripe.com/aFa00ke8h1nscCvfxabQY03"
+          export STRIPE_PAYMENT_LINK_CORPORATE="https://buy.stripe.com/28E6oI4xH4zE6e73OsbQY04"
 
           npm run academy:build
 
@@ -63,7 +64,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git checkout -B academy-live-build
-          git add .env dist/.htaccess dist/academy dist/academy-data
+          git add -f dist/.htaccess dist/academy dist/academy-data
+          if [ -f .env ]; then
+            git add -f .env
+          fi
 
           if ! git diff --cached --quiet; then
             git commit -m "Build academy assets for ${GITHUB_SHA}"

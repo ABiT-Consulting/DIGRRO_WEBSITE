@@ -17,6 +17,11 @@ const generatedLinksJsonPath = path.join(workspaceRoot, 'academy-server', 'api',
 const academyMetadata = {
   academy_system: 'digrro_academy'
 };
+const defaultPaymentLinkUrls = {
+  sprint: 'https://buy.stripe.com/7sY28s2pzaY25a33OsbQY05',
+  bootcamp: 'https://buy.stripe.com/aFa00ke8h1nscCvfxabQY03',
+  corporate: 'https://buy.stripe.com/28E6oI4xH4zE6e73OsbQY04'
+};
 
 function parseEnvContent(content) {
   return content
@@ -108,6 +113,15 @@ function isStripePaymentLinkUrl(value) {
   } catch (error) {
     return false;
   }
+}
+
+function inferPaymentLinkModeFromUrls(links) {
+  const urls = Object.values(links).map((link) => link.url || '');
+  if (urls.some((url) => url.includes('/test_'))) {
+    return 'test';
+  }
+
+  return 'live';
 }
 
 function hasCompletePaymentLinks(config) {
@@ -207,7 +221,7 @@ function buildManualLinks(localEnv, academyBaseUrl) {
 
   for (const plan of planEntries) {
     const envName = paymentLinkEnvName(plan.key);
-    const paymentLinkUrl = trimTrailingSlash(pickEnv(localEnv, envName));
+    const paymentLinkUrl = trimTrailingSlash(pickEnv(localEnv, envName) || defaultPaymentLinkUrls[plan.key]);
 
     if (!paymentLinkUrl) {
       missingEnvNames.push(envName);
@@ -338,20 +352,10 @@ async function main() {
     throw new Error('FRONTEND_URL is required for Stripe payment link metadata.');
   }
 
-  if (!stripeSecretKey) {
-    const manualConfig = buildManualLinks(localEnv, academyBaseUrl);
-
-    if (manualConfig.missingEnvNames.length > 0) {
-      const reason = `Missing Stripe configuration (${manualConfig.missingEnvNames.join(', ')}).`;
-      if (await writeExistingLinksFallback(academyBaseUrl, reason)) {
-        return;
-      }
-
-      throw new Error(`Missing Stripe configuration. Set STRIPE_SECRET_KEY to auto-create Payment Links, or set STRIPE_SECRET for compatibility, or set these existing Payment Link URLs in .env.local: ${manualConfig.missingEnvNames.join(', ')}.`);
-    }
-
+  const manualConfig = buildManualLinks(localEnv, academyBaseUrl);
+  if (manualConfig.missingEnvNames.length === 0) {
     const generatedConfig = {
-      mode: 'manual',
+      mode: inferPaymentLinkModeFromUrls(manualConfig.links),
       generatedAt: new Date().toISOString(),
       academyBaseUrl,
       links: manualConfig.links
@@ -359,6 +363,15 @@ async function main() {
 
     await writeGeneratedConfig(generatedConfig, 'manual Stripe payment links');
     return;
+  }
+
+  if (!stripeSecretKey) {
+    const reason = `Missing Stripe configuration (${manualConfig.missingEnvNames.join(', ')}).`;
+    if (await writeExistingLinksFallback(academyBaseUrl, reason)) {
+      return;
+    }
+
+    throw new Error(`Missing Stripe configuration. Set STRIPE_SECRET_KEY to auto-create Payment Links, or set STRIPE_SECRET for compatibility, or set these existing Payment Link URLs in .env.local: ${manualConfig.missingEnvNames.join(', ')}.`);
   }
 
   const stripeMode = inferStripeMode(stripeSecretKey);

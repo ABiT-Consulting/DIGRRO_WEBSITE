@@ -397,7 +397,29 @@ async function handleEnrollmentSubmit(event) {
   }
 
   if (registrationResult.ok) {
-    statusNode.textContent = "Verification email sent. Please check your inbox.";
+    if (
+      registrationResult.emailVerificationRequired === false &&
+      isValidStripeRedirectUrl(registrationResult.checkoutUrl)
+    ) {
+      statusNode.textContent =
+        registrationResult.message || "Your email is verified. Opening Stripe...";
+      submitButton.textContent = "Opening Stripe";
+      window.location.href = registrationResult.checkoutUrl;
+      return;
+    }
+
+    if (registrationResult.emailVerificationSent === false) {
+      statusNode.textContent =
+        registrationResult.message ||
+        "Your registration is saved, but the email could not be sent. Please try again.";
+      submitButton.textContent = "Try again";
+      submitButton.disabled = false;
+      return;
+    }
+
+    statusNode.textContent =
+      registrationResult.message ||
+      "Verification email sent. Please check your inbox.";
     submitButton.textContent = "Check your email";
     return;
   }

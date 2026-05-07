@@ -49,6 +49,8 @@ Optional standard aliases also work in the PHP backend:
 - `SMTP_PASSWORD`
 - `SMTP_HOST`
 - `SMTP_PORT`
+- `EMAIL_USER`
+- `EMAIL_PASS`
 - `SMTP_FROM_EMAIL`
 - `SMTP_FROM_NAME`
 

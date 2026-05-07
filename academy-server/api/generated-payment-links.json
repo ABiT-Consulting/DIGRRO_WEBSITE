@@ -1,25 +1,25 @@
 {
-  "mode": "test",
-  "generatedAt": "2026-05-06T13:59:32.538Z",
-  "academyBaseUrl": "http://127.0.0.1:5174",
+  "mode": "live",
+  "generatedAt": "2026-05-07T21:27:39.140Z",
+  "academyBaseUrl": "https://digrro.com/academy",
   "links": {
     "sprint": {
-      "productId": "prod_URVOmPz8susSVO",
-      "priceId": "price_1TU5kgJRC1D88wzoGCmACwdD",
-      "paymentLinkId": "plink_1TU5kgJRC1D88wzo15ZHjHFA",
-      "url": "https://buy.stripe.com/test_7sY28s2pzaY25a33OsbQY05"
+      "productId": null,
+      "priceId": null,
+      "paymentLinkId": null,
+      "url": "https://buy.stripe.com/7sY28s2pzaY25a33OsbQY05"
     },
     "bootcamp": {
-      "productId": "prod_URVOASgbrNItuc",
-      "priceId": "price_1TScNsJRC1D88wzo9l5xZfbm",
-      "paymentLinkId": "plink_1TScNtJRC1D88wzov9MFNpiR",
-      "url": "https://buy.stripe.com/test_aFa00ke8h1nscCvfxabQY03"
+      "productId": null,
+      "priceId": null,
+      "paymentLinkId": null,
+      "url": "https://buy.stripe.com/aFa00ke8h1nscCvfxabQY03"
     },
     "corporate": {
-      "productId": "prod_URVOK0G1Pw3TUR",
-      "priceId": "price_1TScNuJRC1D88wzoxZTmp2A2",
-      "paymentLinkId": "plink_1TScNvJRC1D88wzogTl4YCe4",
-      "url": "https://buy.stripe.com/test_28E6oI4xH4zE6e73OsbQY04"
+      "productId": null,
+      "priceId": null,
+      "paymentLinkId": null,
+      "url": "https://buy.stripe.com/28E6oI4xH4zE6e73OsbQY04"
     }
   }
 }
