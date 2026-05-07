@@ -281,7 +281,7 @@ try {
             ? (
                 $emailVerificationSent
                     ? 'Your registration is saved. We sent a verification email from system@digrro.com. Open that email to verify, then you will be redirected to Stripe.'
-                    : 'Your registration is saved, but we could not send the verification email right now. Please try again in a moment.'
+                    : 'Your registration is saved. Email delivery is unavailable right now, so you can continue to Stripe checkout.'
               )
             : 'Your email is already verified. Continuing to Stripe now.'
     ]);
