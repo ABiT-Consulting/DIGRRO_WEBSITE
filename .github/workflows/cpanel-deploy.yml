@@ -73,7 +73,8 @@ jobs:
             git commit -m "Build academy assets for ${GITHUB_SHA}"
           fi
 
-          git push --force-with-lease origin "HEAD:${DEPLOY_BRANCH}"
+          git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}" || true
+          git push --force-with-lease="refs/heads/${DEPLOY_BRANCH}" origin "HEAD:${DEPLOY_BRANCH}"
 
   deploy:
     if: github.ref == 'refs/heads/cpanel-deploy'
