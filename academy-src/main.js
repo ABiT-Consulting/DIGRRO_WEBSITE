@@ -409,6 +409,14 @@ async function handleEnrollmentSubmit(event) {
     }
 
     if (registrationResult.emailVerificationSent === false) {
+      if (isValidStripeRedirectUrl(registrationResult.checkoutUrl)) {
+        statusNode.textContent =
+          "Your registration is saved. Email delivery is unavailable right now, so we are opening secure Stripe checkout.";
+        submitButton.textContent = "Opening Stripe";
+        window.location.href = registrationResult.checkoutUrl;
+        return;
+      }
+
       statusNode.textContent =
         registrationResult.message ||
         "Your registration is saved, but the email could not be sent. Please try again.";
