@@ -114,6 +114,8 @@ try {
             $pdo->rollBack();
             academy_json_response(409, [
                 'ok' => false,
+                'code' => 'email_password_mismatch',
+                'alreadyExists' => true,
                 'message' => 'This email is already registered. Use the correct password to continue.'
             ]);
         }

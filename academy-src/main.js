@@ -265,6 +265,7 @@ async function submitRegistration(requestPayload) {
     );
     if (!response.ok || !requestSucceeded) {
       return {
+        ...responsePayload,
         ok: false,
         message:
           responsePayload?.message ||
@@ -379,13 +380,13 @@ async function handleEnrollmentSubmit(event) {
 
   const registrationResult = await submitRegistration(registrationPayload);
 
-  if (registrationResult.alreadyExists === true) {
+  if (registrationResult.code === "email_password_mismatch") {
     statusNode.textContent =
-      registrationResult.message || "This email is already registered";
-    submitButton.textContent = "Already registered";
-    window.setTimeout(() => {
-      window.location.href = getFrontendHomeUrl();
-    }, 1200);
+      registrationResult.message ||
+      "This email is already registered. Enter the password you used before.";
+    submitButton.textContent = "Check password";
+    submitButton.disabled = false;
+    document.getElementById("enrollment-password")?.focus();
     return;
   }
 
