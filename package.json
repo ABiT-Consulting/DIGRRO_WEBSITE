@@ -3,11 +3,53 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "academy:dev": "vite --config vite.academy.config.js",
-    "academy:build": "vite build --config vite.academy.config.js && node scripts/copy-academy-server-files.mjs",
-    "academy:preview": "vite preview --config vite.academy.config.js"
+    "academy:stripe:sync": "node scripts/sync-stripe-payment-links.mjs",
+    "academy:api": "node server.cjs",
+    "academy:dev": "npm run academy:stripe:sync && node scripts/start-academy-dev.mjs",
+    "academy:build": "npm run academy:stripe:sync && vite build --config vite.academy.config.js && node scripts/copy-academy-server-files.mjs",
+    "academy:preview": "vite preview --outDir dist"
   },
   "devDependencies": {
+    "stripe": "^18.5.0",
     "vite": "^5.4.8"
-  }
+  },
+  "version": "1.0.0",
+  "main": "vite.academy.config.js",
+  "dependencies": {
+    "call-bind-apply-helpers": "^1.0.2",
+    "call-bound": "^1.0.4",
+    "cors": "^2.8.6",
+    "dunder-proto": "^1.0.1",
+    "es-define-property": "^1.0.1",
+    "es-errors": "^1.3.0",
+    "es-object-atoms": "^1.1.1",
+    "esbuild": "^0.21.5",
+    "express": "^5.2.1",
+    "function-bind": "^1.1.2",
+    "get-intrinsic": "^1.3.0",
+    "get-proto": "^1.0.1",
+    "gopd": "^1.2.0",
+    "has-symbols": "^1.1.0",
+    "hasown": "^2.0.2",
+    "math-intrinsics": "^1.1.0",
+    "nanoid": "^3.3.7",
+    "nodemailer": "^8.0.7",
+    "object-inspect": "^1.13.4",
+    "picocolors": "^1.1.1",
+    "postcss": "^8.4.47",
+    "qs": "^6.15.1",
+    "rollup": "^4.24.0",
+    "side-channel": "^1.1.0",
+    "side-channel-list": "^1.0.1",
+    "side-channel-map": "^1.0.1",
+    "side-channel-weakmap": "^1.0.2",
+    "source-map-js": "^1.2.1",
+    "sqlite3": "^6.0.1",
+    "undici-types": "^7.10.0",
+    "uuid": "^14.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

@@ -1,2 +1,12 @@
+.env
+.env.local
+.env.*
+!.env.example
+node_modules/
+database.db
+*.sqlite
 academy-data/*.sqlite
 dist/academy-data/*.sqlite
+dist/
+.codex-logs/
+.vscode/

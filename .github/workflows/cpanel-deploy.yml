@@ -35,8 +35,21 @@ jobs:
 
       - name: Build academy bundle for cPanel branch
         shell: bash
+        env:
+          STRIPE_SECRET_KEY_LIVE: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
+          STRIPE_SECRET_KEY_FALLBACK: ${{ secrets.STRIPE_SECRET_KEY }}
+          ACADEMY_BASE_URL_SECRET: ${{ secrets.ACADEMY_BASE_URL }}
         run: |
           set -euo pipefail
+
+          repo_stripe_secret="$(awk -F= '/^Secret key=/{sub(/^[[:space:]]+/, "", $2); sub(/[[:space:]]+$/, "", $2); print $2; exit}' .env 2>/dev/null || true)"
+          repo_academy_base_url="$(awk -F= '/^ACADEMY_BASE_URL=/{sub(/^[[:space:]]+/, "", $2); sub(/[[:space:]]+$/, "", $2); print $2; exit}' .env 2>/dev/null || true)"
+
+          export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-$repo_stripe_secret}}"
+          export ACADEMY_BASE_URL="${ACADEMY_BASE_URL_SECRET:-${repo_academy_base_url:-https://digrro.com/academy}}"
+          export STRIPE_PAYMENT_LINK_SPRINT="https://buy.stripe.com/7sY28s2pzaY25a33OsbQY05"
+          export STRIPE_PAYMENT_LINK_BOOTCAMP="https://buy.stripe.com/aFa00ke8h1nscCvfxabQY03"
+          export STRIPE_PAYMENT_LINK_CORPORATE="https://buy.stripe.com/28E6oI4xH4zE6e73OsbQY04"
 
           npm run academy:build
 
@@ -51,13 +64,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git checkout -B academy-live-build
-          git add .env dist/.htaccess dist/academy dist/academy-data
+          git add -f dist/.htaccess dist/academy dist/academy-data
+          if [ -f .env ]; then
+            git add -f .env
+          fi
 
           if ! git diff --cached --quiet; then
             git commit -m "Build academy assets for ${GITHUB_SHA}"
           fi
 
-          git push --force-with-lease origin "HEAD:${DEPLOY_BRANCH}"
+          git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}" || true
+          git push --force-with-lease="refs/heads/${DEPLOY_BRANCH}" origin "HEAD:${DEPLOY_BRANCH}"
 
   deploy:
     if: github.ref == 'refs/heads/cpanel-deploy'

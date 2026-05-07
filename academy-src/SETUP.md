@@ -1,23 +1,43 @@
 # Digrro Academy Setup
 
-The academy now uses a static Vite frontend plus a small PHP backend for registration, SQLite storage, and SMTP email confirmation.
+The academy now uses a static Vite frontend plus a small PHP backend for registration, SQLite storage, SMTP email confirmation, and Stripe checkout links.
 
 ## Architecture
 
 1. The academy page collects registration details in the browser.
 2. `academy/api/register.php` validates the payload, writes the account and enrollment into SQLite, and sends the confirmation email from `system@digrro.com`.
 3. `academy/api/confirm.php` marks the email as confirmed when the newcomer clicks the link from the email.
-4. The frontend then redirects the user to the Wise payment link.
+4. Stripe payment links are generated per environment at build time and the frontend then redirects the user to Stripe checkout.
 
 ## Environment handling
 
-The deployed application now expects the real `.env` file to travel with the app repository and be copied into the cPanel document root during deployment.
-Because it contains live Stripe and SMTP secrets, the web root must block direct access to dotfiles.
+The tracked `.env` file can continue to travel with the application for non-blocked settings, while local development secrets should live in `.env.local` and live Stripe builds should use GitHub Actions secrets.
+Because the web root contains SMTP credentials and other runtime settings, dotfiles must stay blocked from direct HTTP access.
 
-The PHP backend reads these keys from `.env` at the deploy root:
+The build and backend loaders support these files in this order:
 
+1. `.env.local`
+2. `.env`
+
+Local development can keep the Stripe test secret in `.env.local` so GitHub push protection does not block it.
+
+The Stripe sync script reads these keys:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_SECRET` (compatibility alias)
 - `Publishable key`
 - `Secret key`
+- `FRONTEND_URL`
+- `ACADEMY_BASE_URL`
+
+If you already created Stripe Payment Links in the Stripe Dashboard and do not want the local sync script to use a Stripe secret key, add these URLs to `.env.local` instead:
+
+- `STRIPE_PAYMENT_LINK_SPRINT`
+- `STRIPE_PAYMENT_LINK_BOOTCAMP`
+- `STRIPE_PAYMENT_LINK_CORPORATE`
+
+The PHP backend reads these runtime keys from `.env` at the deploy root:
+
 - `emailaddress`
 - `password`
 - `Outgoing Server`
@@ -29,8 +49,12 @@ Optional standard aliases also work in the PHP backend:
 - `SMTP_PASSWORD`
 - `SMTP_HOST`
 - `SMTP_PORT`
+- `EMAIL_USER`
+- `EMAIL_PASS`
 - `SMTP_FROM_EMAIL`
 - `SMTP_FROM_NAME`
+
+Live Stripe builds should be supplied through GitHub Actions secrets, especially `STRIPE_SECRET_KEY_LIVE`. The workflow maps that secret into `STRIPE_SECRET_KEY` only during the build that refreshes the Stripe payment links.
 
 ## cPanel deploy behavior
 
@@ -50,4 +74,6 @@ npm run academy:dev
 npm run academy:build
 ```
 
-`academy:build` now copies the PHP backend files into the build output so cPanel deploy can publish them together with the academy frontend.
+`academy:dev` and `academy:build` both regenerate Stripe payment links before starting so each environment uses the Stripe credentials available to it.
+
+`academy:build` then copies the PHP backend files into the build output so cPanel deploy can publish them together with the academy frontend.

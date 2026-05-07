@@ -116,11 +116,24 @@ function academy_normalize_email(string $value): string
     return strtolower(trim($value));
 }
 
+function academy_is_localhost_url(string $value): bool
+{
+    $host = parse_url($value, PHP_URL_HOST);
+    return in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+}
+
 function academy_academy_base_url(): string
 {
     $configured = academy_env(['FRONTEND_URL', 'ACADEMY_BASE_URL']);
     if (is_string($configured) && $configured !== '') {
-        return rtrim($configured, '/');
+        $requestHost = $_SERVER['HTTP_HOST'] ?? '';
+        $requestIsLocal = str_starts_with($requestHost, 'localhost')
+            || str_starts_with($requestHost, '127.0.0.1')
+            || str_starts_with($requestHost, '[::1]');
+
+        if (!academy_is_localhost_url($configured) || $requestIsLocal) {
+            return rtrim($configured, '/');
+        }
     }
 
     $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
@@ -463,12 +476,16 @@ function academy_smtp_escape(string $body): string
 
 function academy_send_confirmation_email(array $recipient, array $plan): void
 {
-    $host = academy_smtp_value(['SMTP_HOST', 'Outgoing Server']);
-    $port = (int) academy_smtp_value(['SMTP_PORT', 'SMTP Port']);
-    $username = academy_smtp_value(['SMTP_USERNAME', 'emailaddress']);
-    $password = academy_smtp_value(['SMTP_PASSWORD', 'password']);
-    $fromEmail = academy_env(['SMTP_FROM_EMAIL', 'emailaddress'], $username) ?: $username;
+    $host = academy_env(['SMTP_HOST', 'Outgoing Server'], 'mail.digrro.com') ?: 'mail.digrro.com';
+    $port = (int) (academy_env(['SMTP_PORT', 'SMTP Port'], '465') ?: '465');
+    $username = academy_smtp_value(['SMTP_USERNAME', 'emailaddress', 'EMAIL_USER']);
+    $password = academy_smtp_value(['SMTP_PASSWORD', 'password', 'EMAIL_PASS']);
+    $fromEmail = academy_env(['SMTP_FROM_EMAIL', 'emailaddress', 'EMAIL_USER'], $username) ?: $username;
     $fromName = academy_env(['SMTP_FROM_NAME'], 'Digrro Academy') ?: 'Digrro Academy';
+
+    if ($port <= 0) {
+        throw new RuntimeException('The academy SMTP port is invalid.');
+    }
 
     $subject = academy_mail_header_value('Confirm your Digrro Academy registration');
     $confirmationUrl = academy_confirmation_url(
