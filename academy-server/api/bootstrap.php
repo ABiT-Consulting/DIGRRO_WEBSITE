@@ -515,9 +515,9 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
 {
     $host = academy_env(['SMTP_HOST', 'Outgoing Server'], 'mail.digrro.com') ?: 'mail.digrro.com';
     $port = (int) (academy_env(['SMTP_PORT', 'SMTP Port'], '465') ?: '465');
-    $username = academy_smtp_value(['SMTP_USERNAME', 'emailaddress', 'EMAIL_USER']);
-    $password = academy_smtp_value(['SMTP_PASSWORD', 'password', 'EMAIL_PASS']);
-    $fromEmail = academy_env(['SMTP_FROM_EMAIL', 'emailaddress', 'EMAIL_USER'], $username) ?: $username;
+    $username = academy_smtp_value(['EMAIL_USER', 'SMTP_USERNAME', 'emailaddress']);
+    $password = academy_smtp_value(['EMAIL_PASS', 'SMTP_PASSWORD', 'password']);
+    $fromEmail = academy_env(['SMTP_FROM_EMAIL', 'EMAIL_USER', 'emailaddress'], $username) ?: $username;
     $fromName = academy_env(['SMTP_FROM_NAME'], 'Digrro Academy') ?: 'Digrro Academy';
 
     if ($port <= 0) {
