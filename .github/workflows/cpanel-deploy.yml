@@ -447,6 +447,9 @@ jobs:
           direct_publish_academy_assets
           cleanup_runtime_files
 
+          echo "Academy assets were direct-published through cPanel Fileman. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
+          exit 0
+
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
           update_resp="$(mktemp)"
           cpanel_get "VersionControl/update" "$update_resp" \
