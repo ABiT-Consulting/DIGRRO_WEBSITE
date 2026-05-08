@@ -47,9 +47,9 @@ jobs:
 
           export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-$repo_stripe_secret}}"
           export ACADEMY_BASE_URL="${ACADEMY_BASE_URL_SECRET:-${repo_academy_base_url:-https://digrro.com/academy}}"
-          export STRIPE_PAYMENT_LINK_SPRINT="https://buy.stripe.com/7sY28s2pzaY25a33OsbQY05"
-          export STRIPE_PAYMENT_LINK_BOOTCAMP="https://buy.stripe.com/aFa00ke8h1nscCvfxabQY03"
-          export STRIPE_PAYMENT_LINK_CORPORATE="https://buy.stripe.com/28E6oI4xH4zE6e73OsbQY04"
+          export STRIPE_PAYMENT_LINK_SPRINT="https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06"
+          export STRIPE_PAYMENT_LINK_BOOTCAMP="https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06"
+          export STRIPE_PAYMENT_LINK_CORPORATE="https://buy.stripe.com/5kQ6oIbRnesna6M8McdjO05"
 
           npm run academy:build
 
@@ -162,6 +162,52 @@ jobs:
             return 0
           }
 
+          cpanel_api2_get() {
+            local out="$1"; shift
+            local url="${base}/json-api/cpanel"
+            local err
+            err="$(mktemp)"
+
+            local cmd=(curl "${curl_flags[@]}" -H "$auth_header" -H "Accept: application/json" --get)
+            cmd+=(--data-urlencode "cpanel_jsonapi_user=${CPANEL_USER}")
+            cmd+=(--data-urlencode "cpanel_jsonapi_apiversion=2")
+            local kv
+            for kv in "$@"; do
+              cmd+=(--data-urlencode "$kv")
+            done
+            cmd+=("$url" -o "$out" -w "%{http_code}")
+
+            set +e
+            local code
+            code="$("${cmd[@]}" 2>"$err")"
+            local rc=$?
+            set -e
+
+            if (( rc != 0 )); then
+              sed -n '1,80p' "$err" || true
+              return 1
+            fi
+
+            if [[ "$code" =~ ^[0-9]+$ ]] && (( code >= 400 )); then
+              return 1
+            fi
+
+            return 0
+          }
+
+          cleanup_runtime_files() {
+            local status_file="${CPANEL_REPO_ROOT%/}/academy/api/mail-sync-status.json"
+            local cleanup_resp
+            cleanup_resp="$(mktemp)"
+
+            cpanel_api2_get "$cleanup_resp" \
+              "cpanel_jsonapi_module=Fileman" \
+              "cpanel_jsonapi_func=fileop" \
+              "op=unlink" \
+              "sourcefiles=${status_file}" \
+              "doubledecode=1" || true
+          }
+
           jq_ok_or_dump() {
             local file="$1"
             if ! jq . "$file" >/dev/null 2>&1; then
@@ -194,6 +240,8 @@ jobs:
             fi
             return 0
           }
+
+          cleanup_runtime_files
 
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
           update_resp="$(mktemp)"
