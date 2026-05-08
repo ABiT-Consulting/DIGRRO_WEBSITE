@@ -8,3 +8,4 @@ deployment:
     - '/usr/bin/find "$DEPLOYPATH" -mindepth 1 -maxdepth 1 ! -name ".env" ! -name "academy-data" -exec /bin/rm -rf {} +'
     - '/bin/cp -a ./dist/. "$DEPLOYPATH"'
     - 'if [ -f ./.env ]; then /bin/cp -a ./.env "$DEPLOYPATH/.env"; elif [ ! -f "$DEPLOYPATH/.env" ]; then echo "WARNING: No .env found in the repository or deploy path. Create $DEPLOYPATH/.env in cPanel for SMTP and runtime settings."; fi'
+    - '/bin/bash ./.cpanel/sync-academy-mail.sh "$DEPLOYPATH"'
