@@ -64,6 +64,8 @@ pick_env_value() {
 
 smtp_user="$(pick_env_value EMAIL_USER SMTP_USERNAME emailaddress || true)"
 smtp_pass="$(pick_env_value EMAIL_PASS SMTP_PASSWORD password || true)"
+smtp_local="${smtp_user%@*}"
+smtp_domain="${smtp_user#*@}"
 
 if [[ -z "$smtp_user" || -z "$smtp_pass" ]]; then
   write_status false "credentials" "Email credentials are incomplete in .env." "$smtp_user"
@@ -94,7 +96,7 @@ if [[ -z "$uapi_cmd" ]]; then
   exit 0
 fi
 
-uapi_output="$("$uapi_cmd" --output=json Email passwd_pop email="$smtp_user" password="$smtp_pass" 2>&1 || true)"
+uapi_output="$("$uapi_cmd" --output=json Email passwd_pop email="$smtp_local" domain="$smtp_domain" password="$smtp_pass" 2>&1 || true)"
 if printf '%s' "$uapi_output" | grep -q '"status"[[:space:]]*:[[:space:]]*1'; then
   verify_output="$("$uapi_cmd" --output=json Email verify_password email="$smtp_user" password="$smtp_pass" 2>&1 || true)"
   if printf '%s' "$verify_output" | grep -q '"data"[[:space:]]*:[[:space:]]*1'; then
