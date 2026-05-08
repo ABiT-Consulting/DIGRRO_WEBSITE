@@ -474,6 +474,43 @@ function academy_smtp_escape(string $body): string
     return str_replace("\n", "\r\n", $body);
 }
 
+function academy_mail_envelope_address(string $email): string
+{
+    $email = academy_mail_header_value($email);
+    return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : 'system@digrro.com';
+}
+
+function academy_send_confirmation_email_via_php_mail(
+    string $toEmail,
+    string $toName,
+    string $fromEmail,
+    string $fromName,
+    string $subject,
+    string $body
+): void {
+    if (!function_exists('mail')) {
+        throw new RuntimeException('PHP mail is not available on this server.');
+    }
+
+    $safeToEmail = academy_mail_header_value($toEmail);
+    $safeToName = academy_mail_header_value($toName);
+    $safeFromEmail = academy_mail_envelope_address($fromEmail);
+    $safeFromName = academy_mail_header_value($fromName);
+    $headers = [
+        'From: ' . $safeFromName . ' <' . $safeFromEmail . '>',
+        'Reply-To: ' . $safeFromEmail,
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit'
+    ];
+
+    $to = $safeToName !== '' ? $safeToName . ' <' . $safeToEmail . '>' : $safeToEmail;
+    $sent = @mail($to, $subject, $body, implode("\r\n", $headers), '-f' . $safeFromEmail);
+    if (!$sent) {
+        throw new RuntimeException('PHP mail did not accept the confirmation email.');
+    }
+}
+
 function academy_send_confirmation_email(array $recipient, array $plan): void
 {
     $host = academy_env(['SMTP_HOST', 'Outgoing Server'], 'mail.digrro.com') ?: 'mail.digrro.com';
@@ -510,44 +547,68 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
         'Digrro Academy'
     ]);
 
-    $transport = ($port === 465 ? 'ssl://' : '') . $host . ':' . $port;
-    $socket = @stream_socket_client($transport, $errorNumber, $errorMessage, 30, STREAM_CLIENT_CONNECT);
-    if (!is_resource($socket)) {
-        throw new RuntimeException('Could not connect to the SMTP server. ' . $errorMessage);
-    }
-
-    stream_set_timeout($socket, 30);
-
-    academy_smtp_expect($socket, [220]);
-    academy_smtp_command($socket, 'EHLO digrro.com', [250]);
-
-    if ($port !== 465) {
-        academy_smtp_command($socket, 'STARTTLS', [220]);
-        if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
-            throw new RuntimeException('Could not start TLS for SMTP.');
+    try {
+        $transport = ($port === 465 ? 'ssl://' : '') . $host . ':' . $port;
+        $socket = @stream_socket_client($transport, $errorNumber, $errorMessage, 30, STREAM_CLIENT_CONNECT);
+        if (!is_resource($socket)) {
+            throw new RuntimeException('Could not connect to the SMTP server. ' . $errorMessage);
         }
+
+        stream_set_timeout($socket, 30);
+
+        academy_smtp_expect($socket, [220]);
         academy_smtp_command($socket, 'EHLO digrro.com', [250]);
+
+        if ($port !== 465) {
+            academy_smtp_command($socket, 'STARTTLS', [220]);
+            if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                throw new RuntimeException('Could not start TLS for SMTP.');
+            }
+            academy_smtp_command($socket, 'EHLO digrro.com', [250]);
+        }
+
+        academy_smtp_command($socket, 'AUTH LOGIN', [334]);
+        academy_smtp_command($socket, base64_encode($username), [334]);
+        academy_smtp_command($socket, base64_encode($password), [235]);
+        academy_smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', [250]);
+        academy_smtp_command($socket, 'RCPT TO:<' . $recipient['email'] . '>', [250, 251]);
+        academy_smtp_command($socket, 'DATA', [354]);
+
+        $headers = [
+            'Date: ' . date(DATE_RFC2822),
+            'From: ' . academy_mail_header_value($fromName) . ' <' . academy_mail_header_value($fromEmail) . '>',
+            'To: ' . academy_mail_header_value($recipient['full_name']) . ' <' . academy_mail_header_value($recipient['email']) . '>',
+            'Subject: ' . $subject,
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: 8bit'
+        ];
+
+        fwrite($socket, implode("\r\n", $headers) . "\r\n\r\n" . academy_smtp_escape($body) . "\r\n.\r\n");
+        academy_smtp_expect($socket, [250]);
+        @fwrite($socket, "QUIT\r\n");
+        fclose($socket);
+    } catch (Throwable $smtpError) {
+        if (isset($socket) && is_resource($socket)) {
+            fclose($socket);
+        }
+
+        try {
+            academy_send_confirmation_email_via_php_mail(
+                (string) $recipient['email'],
+                (string) $recipient['full_name'],
+                $fromEmail,
+                $fromName,
+                $subject,
+                $body
+            );
+            error_log('Digrro Academy SMTP failed, but PHP mail accepted the confirmation email: ' . $smtpError->getMessage());
+        } catch (Throwable $mailError) {
+            throw new RuntimeException(
+                'SMTP failed: ' . $smtpError->getMessage() . ' PHP mail fallback failed: ' . $mailError->getMessage(),
+                0,
+                $smtpError
+            );
+        }
     }
-
-    academy_smtp_command($socket, 'AUTH LOGIN', [334]);
-    academy_smtp_command($socket, base64_encode($username), [334]);
-    academy_smtp_command($socket, base64_encode($password), [235]);
-    academy_smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', [250]);
-    academy_smtp_command($socket, 'RCPT TO:<' . $recipient['email'] . '>', [250, 251]);
-    academy_smtp_command($socket, 'DATA', [354]);
-
-    $headers = [
-        'Date: ' . date(DATE_RFC2822),
-        'From: ' . academy_mail_header_value($fromName) . ' <' . academy_mail_header_value($fromEmail) . '>',
-        'To: ' . academy_mail_header_value($recipient['full_name']) . ' <' . academy_mail_header_value($recipient['email']) . '>',
-        'Subject: ' . $subject,
-        'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8',
-        'Content-Transfer-Encoding: 8bit'
-    ];
-
-    fwrite($socket, implode("\r\n", $headers) . "\r\n\r\n" . academy_smtp_escape($body) . "\r\n.\r\n");
-    academy_smtp_expect($socket, [250]);
-    academy_smtp_command($socket, 'QUIT', [221]);
-    fclose($socket);
 }
