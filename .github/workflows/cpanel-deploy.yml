@@ -227,6 +227,60 @@ jobs:
             return 0
           }
 
+          cpanel_upload() {
+            local endpoint="$1"; shift
+            local out="$1"; shift
+            local target_dir="$1"; shift
+            local source_file="$1"; shift
+            local target_file="$1"; shift
+            local url="${base}/execute/${endpoint}"
+            local err
+            err="$(mktemp)"
+
+            local cmd=(
+              curl "${curl_flags[@]}" -X POST
+              -H "$auth_header"
+              -H "Accept: application/json"
+              -F "dir=${target_dir}"
+              -F "file=@${source_file};filename=${target_file}"
+              "$url" -o "$out" -w "%{http_code}"
+            )
+
+            set +e
+            local code
+            code="$("${cmd[@]}" 2>"$err")"
+            local rc=$?
+            set -e
+
+            if (( rc != 0 )); then
+              sed -n '1,80p' "$err" || true
+              return 1
+            fi
+
+            if [[ "$code" =~ ^[0-9]+$ ]] && (( code >= 400 )); then
+              return 1
+            fi
+
+            return 0
+          }
+
+          ensure_cpanel_dir() {
+            local parent_dir="$1"
+            local dir_name="$2"
+            local response
+
+            if [[ -z "$parent_dir" || -z "$dir_name" ]]; then
+              return 0
+            fi
+
+            response="$(mktemp)"
+            cpanel_api2_get "$response" \
+              "cpanel_jsonapi_module=Fileman" \
+              "cpanel_jsonapi_func=mkdir" \
+              "path=${parent_dir}" \
+              "name=${dir_name}" || true
+          }
+
           publish_academy_file() {
             local source_file="$1"
             local target_dir="$2"
@@ -257,6 +311,31 @@ jobs:
             fi
           }
 
+          upload_academy_file() {
+            local source_file="$1"
+            local target_dir="$2"
+            local target_file="$3"
+            local response
+
+            if [[ ! -f "$source_file" ]]; then
+              return 1
+            fi
+
+            response="$(mktemp)"
+            if cpanel_upload "Fileman/upload_files" "$response" "$target_dir" "$source_file" "$target_file"; then
+              if jq -e '((.result // .).status // 0) == 1' "$response" >/dev/null 2>&1; then
+                echo "Uploaded ${target_dir}/${target_file}"
+                return 0
+              fi
+              echo "Upload skipped for ${target_dir}/${target_file}"
+              jq -c '(.result // .).errors // empty' "$response" 2>/dev/null || true
+            else
+              echo "Upload request failed for ${target_dir}/${target_file}"
+            fi
+
+            return 1
+          }
+
           direct_publish_academy_assets() {
             local account_home="/home/${CPANEL_USER}"
             local root
@@ -277,11 +356,30 @@ jobs:
             local asset
 
             for root in "${roots[@]}"; do
+              if [[ -z "$root" ]]; then
+                continue
+              fi
+
+              ensure_cpanel_dir "$root" "academy"
+              ensure_cpanel_dir "${root}/academy" "api"
+              ensure_cpanel_dir "${root}/academy" "assets"
+
               publish_academy_file "dist/academy/api/generated-payment-links.json" "${root}/academy/api" "generated-payment-links.json"
-              publish_academy_file "dist/academy/index.html" "${root}/academy" "index.html"
+              asset_failure=0
+              asset_count=0
               while IFS= read -r asset; do
-                publish_academy_file "dist/academy/assets/${asset}" "${root}/academy/assets" "$asset"
+                if upload_academy_file "dist/academy/assets/${asset}" "${root}/academy/assets" "$asset"; then
+                  asset_count=$((asset_count + 1))
+                else
+                  asset_failure=1
+                fi
               done < <(find dist/academy/assets -maxdepth 1 -type f -printf '%f\n' || true)
+
+              if (( asset_count > 0 && asset_failure == 0 )); then
+                publish_academy_file "dist/academy/index.html" "${root}/academy" "index.html"
+              else
+                echo "Skipping direct index publish for ${root}/academy because asset upload was incomplete"
+              fi
             done
           }
 
