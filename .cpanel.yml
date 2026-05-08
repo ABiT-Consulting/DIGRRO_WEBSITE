@@ -8,4 +8,5 @@ deployment:
     - '/usr/bin/find "$DEPLOYPATH" -mindepth 1 -maxdepth 1 ! -name ".env" ! -name "academy-data" -exec /bin/rm -rf {} +'
     - '/bin/cp -a ./dist/. "$DEPLOYPATH"'
     - 'if [ -f ./.env ]; then /bin/cp -a ./.env "$DEPLOYPATH/.env"; elif [ ! -f "$DEPLOYPATH/.env" ]; then echo "WARNING: No .env found in the repository or deploy path. Create $DEPLOYPATH/.env in cPanel for SMTP and runtime settings."; fi'
+    - 'PHP_BIN="$(command -v php || true)"; if [ -z "$PHP_BIN" ] && [ -x /usr/local/bin/php ]; then PHP_BIN="/usr/local/bin/php"; fi; if [ -n "$PHP_BIN" ]; then "$PHP_BIN" ./.cpanel/clear-academy-test-email.php "$DEPLOYPATH" "20232022115@std.nisantasi.edu.tr"; else echo "WARNING: PHP CLI not found; academy test email cleanup skipped."; fi'
     - '/bin/bash ./.cpanel/sync-academy-mail.sh "$DEPLOYPATH"'
