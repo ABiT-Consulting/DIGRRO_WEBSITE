@@ -96,8 +96,14 @@ fi
 
 uapi_output="$("$uapi_cmd" --output=json Email passwd_pop email="$smtp_user" password="$smtp_pass" 2>&1 || true)"
 if printf '%s' "$uapi_output" | grep -q '"status"[[:space:]]*:[[:space:]]*1'; then
-  write_status true "uapi" "cPanel accepted the mailbox password sync." "$smtp_user"
-  echo "Academy SMTP mailbox password synced for ${smtp_user}."
+  verify_output="$("$uapi_cmd" --output=json Email verify_password email="$smtp_user" password="$smtp_pass" 2>&1 || true)"
+  if printf '%s' "$verify_output" | grep -q '"data"[[:space:]]*:[[:space:]]*1'; then
+    write_status true "uapi" "cPanel accepted and verified the mailbox password sync." "$smtp_user"
+    echo "Academy SMTP mailbox password synced and verified for ${smtp_user}."
+  else
+    write_status false "verify" "cPanel accepted password sync but did not verify it: ${verify_output:0:500}" "$smtp_user"
+    echo "WARNING: Academy SMTP mailbox password sync could not be verified for ${smtp_user}."
+  fi
 else
   write_status false "uapi" "cPanel rejected mailbox password sync: ${uapi_output:0:500}" "$smtp_user"
   echo "WARNING: Academy SMTP mailbox password sync failed for ${smtp_user}."
