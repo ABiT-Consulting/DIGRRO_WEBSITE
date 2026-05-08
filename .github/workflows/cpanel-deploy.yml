@@ -354,6 +354,7 @@ jobs:
               "public_html"
             )
             local asset
+            local api_file
 
             for root in "${roots[@]}"; do
               if [[ -z "$root" ]]; then
@@ -364,7 +365,10 @@ jobs:
               ensure_cpanel_dir "${root}/academy" "api"
               ensure_cpanel_dir "${root}/academy" "assets"
 
-              publish_academy_file "dist/academy/api/generated-payment-links.json" "${root}/academy/api" "generated-payment-links.json"
+              while IFS= read -r api_file; do
+                publish_academy_file "dist/academy/api/${api_file}" "${root}/academy/api" "$api_file"
+              done < <(find dist/academy/api -maxdepth 1 -type f -printf '%f\n' || true)
+
               asset_failure=0
               asset_count=0
               while IFS= read -r asset; do
