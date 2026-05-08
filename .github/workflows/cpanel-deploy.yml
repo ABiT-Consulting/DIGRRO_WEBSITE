@@ -195,6 +195,96 @@ jobs:
             return 0
           }
 
+          cpanel_post() {
+            local endpoint="$1"; shift
+            local out="$1"; shift
+            local url="${base}/execute/${endpoint}"
+            local err
+            err="$(mktemp)"
+
+            local cmd=(curl "${curl_flags[@]}" -X POST -H "$auth_header" -H "Accept: application/json")
+            local kv
+            for kv in "$@"; do
+              cmd+=(--data-urlencode "$kv")
+            done
+            cmd+=("$url" -o "$out" -w "%{http_code}")
+
+            set +e
+            local code
+            code="$("${cmd[@]}" 2>"$err")"
+            local rc=$?
+            set -e
+
+            if (( rc != 0 )); then
+              sed -n '1,80p' "$err" || true
+              return 1
+            fi
+
+            if [[ "$code" =~ ^[0-9]+$ ]] && (( code >= 400 )); then
+              return 1
+            fi
+
+            return 0
+          }
+
+          publish_academy_file() {
+            local source_file="$1"
+            local target_dir="$2"
+            local target_file="$3"
+            local response
+            local content
+
+            if [[ ! -f "$source_file" ]]; then
+              return 0
+            fi
+
+            content="$(<"$source_file")"
+            response="$(mktemp)"
+            if cpanel_post "Fileman/save_file_content" "$response" \
+              "dir=${target_dir}" \
+              "file=${target_file}" \
+              "content=${content}" \
+              "from_charset=UTF-8" \
+              "to_charset=UTF-8"; then
+              if jq -e '((.result // .).status // 0) == 1' "$response" >/dev/null 2>&1; then
+                echo "Direct-published ${target_dir}/${target_file}"
+              else
+                echo "Direct publish skipped for ${target_dir}/${target_file}"
+                jq -c '(.result // .).errors // empty' "$response" 2>/dev/null || true
+              fi
+            else
+              echo "Direct publish request failed for ${target_dir}/${target_file}"
+            fi
+          }
+
+          direct_publish_academy_assets() {
+            local account_home="/home/${CPANEL_USER}"
+            local root
+            local repo_root_abs="${CPANEL_REPO_ROOT%/}"
+            local repo_root_rel="${repo_root_abs#${account_home}/}"
+            local roots=(
+              "${repo_root_abs}"
+              "${repo_root_rel}"
+              "${account_home}/public_html/digrro.com"
+              "public_html/digrro.com"
+              "${account_home}/digrro.com"
+              "digrro.com"
+              "${account_home}/public_html/digrro"
+              "public_html/digrro"
+              "${account_home}/public_html"
+              "public_html"
+            )
+            local asset
+
+            for root in "${roots[@]}"; do
+              publish_academy_file "dist/academy/api/generated-payment-links.json" "${root}/academy/api" "generated-payment-links.json"
+              publish_academy_file "dist/academy/index.html" "${root}/academy" "index.html"
+              while IFS= read -r asset; do
+                publish_academy_file "dist/academy/assets/${asset}" "${root}/academy/assets" "$asset"
+              done < <(find dist/academy/assets -maxdepth 1 -type f -printf '%f\n' || true)
+            done
+          }
+
           cleanup_runtime_files() {
             local account_home="/home/${CPANEL_USER}"
             local cleanup_resp
@@ -256,6 +346,7 @@ jobs:
             return 0
           }
 
+          direct_publish_academy_assets
           cleanup_runtime_files
 
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
