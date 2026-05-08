@@ -18,9 +18,9 @@ const academyMetadata = {
   academy_system: 'digrro_academy'
 };
 const defaultPaymentLinkUrls = {
-  sprint: 'https://buy.stripe.com/7sY28s2pzaY25a33OsbQY05',
-  bootcamp: 'https://buy.stripe.com/aFa00ke8h1nscCvfxabQY03',
-  corporate: 'https://buy.stripe.com/28E6oI4xH4zE6e73OsbQY04'
+  sprint: 'https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06',
+  bootcamp: 'https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06',
+  corporate: 'https://buy.stripe.com/5kQ6oIbRnesna6M8McdjO05'
 };
 
 function parseEnvContent(content) {
