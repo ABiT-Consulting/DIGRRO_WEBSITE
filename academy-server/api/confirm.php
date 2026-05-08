@@ -157,7 +157,7 @@ $academyUrl = academy_academy_base_url() . '/';
         <script>
           window.setTimeout(function () {
             window.location.href = <?php echo json_encode($checkoutUrl, JSON_UNESCAPED_SLASHES); ?>;
-          }, 2500);
+          }, 3000);
         </script>
       <?php else: ?>
         <a class="button" href="<?php echo academy_escape_html($academyUrl); ?>">Return to Digrro Academy</a>
