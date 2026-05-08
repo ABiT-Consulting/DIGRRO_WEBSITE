@@ -41,6 +41,7 @@ $pincode = trim((string) ($payload['pincode'] ?? ''));
 $company = trim((string) ($payload['company'] ?? ''));
 $checkoutReference = trim((string) ($payload['checkoutReference'] ?? ''));
 $sendConfirmationEmail = filter_var($payload['sendConfirmationEmail'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$debugEmailDelivery = trim((string) ($_SERVER['HTTP_X_DIGRRO_EMAIL_DEBUG'] ?? '')) === '1';
 $checkoutUrl = academy_build_checkout_url($baseCheckoutUrl, $email, $checkoutReference, $plan['key']);
 
 $requiredFields = [
@@ -106,6 +107,7 @@ try {
     $shouldSendConfirmation = false;
     $emailVerificationRequired = false;
     $emailVerificationSent = false;
+    $emailDeliveryError = null;
     $confirmationToken = null;
     $accountId = null;
 
@@ -270,11 +272,12 @@ try {
             ], $plan);
             $emailVerificationSent = true;
         } catch (Throwable $emailError) {
+            $emailDeliveryError = $emailError->getMessage();
             error_log('Digrro Academy confirmation email failed: ' . $emailError->getMessage());
         }
     }
 
-    academy_json_response(200, [
+    $responsePayload = [
         'ok' => true,
         'checkoutUrl' => $checkoutUrl,
         'emailVerificationRequired' => $emailVerificationRequired,
@@ -286,7 +289,13 @@ try {
                     : 'Your registration is saved. Email delivery is unavailable right now, so you can continue to Stripe checkout.'
               )
             : 'Your email is already verified. Continuing to Stripe now.'
-    ]);
+    ];
+
+    if ($debugEmailDelivery && is_string($emailDeliveryError) && $emailDeliveryError !== '') {
+        $responsePayload['emailDeliveryError'] = $emailDeliveryError;
+    }
+
+    academy_json_response(200, $responsePayload);
 } catch (Throwable $error) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
