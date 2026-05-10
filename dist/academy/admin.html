@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digrro Academy Teacher Portal</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" sizes="64x64" href="../favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="./assets/admin-B1YRCQbV.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/styles-XM0MDUVc.js">
+    <link rel="stylesheet" crossorigin href="./assets/styles-_w0GNgyC.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="./index.html">
+          <img src="../white_logo_digrro.png" alt="Digrro" />
+          <span>Teacher Portal</span>
+        </a>
+        <nav class="topbar-links">
+          <a class="nav-link" href="./index.html">Public page</a>
+          <button class="btn btn-secondary" type="button" id="admin-logout" hidden>Logout</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- ===== Login view ===== -->
+      <section class="hero" id="admin-login-view">
+        <div class="container" style="max-width: 460px; margin: 0 auto;">
+          <div class="login-card">
+            <span class="eyebrow">Teacher login</span>
+            <h2 style="margin-top: 0.75rem;">Sign in to manage courses</h2>
+            <p>Use the teacher email and password configured in your .env file.</p>
+
+            <form id="admin-login-form" class="field-stack" novalidate>
+              <div class="field">
+                <label for="admin-email">Email</label>
+                <input id="admin-email" name="email" type="email" autocomplete="email" required />
+              </div>
+              <div class="field">
+                <label for="admin-password">Password</label>
+                <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+              </div>
+              <div class="form-status" id="admin-login-status" role="status" aria-live="polite">
+                Enter your teacher credentials to continue.
+              </div>
+              <button class="btn btn-primary btn-block" type="submit" id="admin-login-submit">Login</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Dashboard view ===== -->
+      <section class="hero" id="admin-dashboard-view" hidden>
+        <div class="container">
+          <div class="section-head" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+            <div>
+              <span class="section-kicker">Courses</span>
+              <h2 class="section-title" style="margin-top: 0.4rem;">Manage Academy courses</h2>
+              <p class="section-desc">Teachers can add courses, set pricing, and publish the class access link students receive after payment.</p>
+            </div>
+            <button class="btn btn-primary" type="button" id="admin-new-course">+ New course</button>
+          </div>
+
+          <div class="form-status" id="admin-courses-status" role="status" aria-live="polite" style="margin-bottom: 1rem;">
+            Loading courses...
+          </div>
+
+          <div id="admin-courses-list" class="grid-2"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===== Course editor modal ===== -->
+    <div class="modal" id="course-modal" aria-hidden="true" inert>
+      <div class="modal-backdrop" data-close-modal></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="course-modal-title">
+        <div class="modal-head">
+          <div>
+            <span class="section-kicker">Course</span>
+            <h2 id="course-modal-title">New course</h2>
+            <p>Set price, duration, and what learners get.</p>
+          </div>
+          <button class="modal-close" type="button" id="course-modal-close" aria-label="Close">×</button>
+        </div>
+
+        <form id="course-form" novalidate>
+          <input type="hidden" id="course-id" value="" />
+          <div class="form-grid" style="margin-top: 1rem;">
+            <div class="field">
+              <label for="course-plan-key">Plan key</label>
+              <input id="course-plan-key" type="text" autocomplete="off" placeholder="e.g. bootcamp" required />
+            </div>
+            <div class="field">
+              <label for="course-amount">Price (USD)</label>
+              <input id="course-amount" type="number" min="0" step="1" required />
+            </div>
+            <div class="field full">
+              <label for="course-label">Course name</label>
+              <input id="course-label" type="text" required />
+            </div>
+            <div class="field">
+              <label for="course-duration">Duration</label>
+              <input id="course-duration" type="text" placeholder="e.g. 4 weeks" />
+            </div>
+            <div class="field">
+              <label for="course-audience">Format / audience</label>
+              <input id="course-audience" type="text" placeholder="e.g. 8 live sessions" />
+            </div>
+            <div class="field">
+              <label for="course-teacher">Teacher name</label>
+              <input id="course-teacher" type="text" placeholder="e.g. Digrro Faculty" />
+            </div>
+            <div class="field">
+              <label for="course-badge">Badge (optional)</label>
+              <input id="course-badge" type="text" placeholder="e.g. Most chosen" />
+            </div>
+            <div class="field">
+              <label for="course-display-order">Display order</label>
+              <input id="course-display-order" type="number" min="0" step="1" value="0" />
+            </div>
+            <div class="field full">
+              <label for="course-description">Subtitle / description</label>
+              <input id="course-description" type="text" placeholder="Short caption shown under the price" />
+            </div>
+            <div class="field full">
+              <label for="course-features">Features (one per line)</label>
+              <textarea id="course-features" rows="4" style="font-family: inherit; padding: 0.65rem 0.85rem; background: var(--surface-2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; resize: vertical;"></textarea>
+            </div>
+            <div class="field full">
+              <label for="course-checkout-description">Stripe checkout description</label>
+              <input id="course-checkout-description" type="text" placeholder="Shown on the Stripe checkout page" />
+            </div>
+            <div class="field full">
+              <label for="course-learning-url">Class / materials URL</label>
+              <input id="course-learning-url" type="url" placeholder="Private Zoom, LMS, Google Classroom, or course materials link" />
+            </div>
+            <div class="field full">
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                <input id="course-is-active" type="checkbox" checked style="width: auto; margin: 0;" />
+                Active (visible on the public page)
+              </label>
+            </div>
+          </div>
+
+          <div class="form-status" id="course-form-status" role="status" aria-live="polite">
+            Fill in the course details and save.
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="course-form-submit">Save course</button>
+            <button class="btn btn-secondary" type="button" id="course-form-cancel">Cancel</button>
+            <button class="btn btn-ghost" type="button" id="course-form-delete" hidden style="color: #fca5a5; margin-left: auto;">Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div class="footer-copy">Copyright Digrro Academy Teacher Portal. Restricted area.</div>
+        <a class="btn btn-ghost" href="./index.html">Back to public page</a>
+      </div>
+    </footer>
+  </body>
+</html>

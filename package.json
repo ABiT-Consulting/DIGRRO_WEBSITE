@@ -5,6 +5,8 @@
   "scripts": {
     "academy:stripe:sync": "node scripts/sync-stripe-payment-links.mjs",
     "academy:api": "node server.cjs",
+    "academy:hash": "node scripts/hash-academy-admin-password.mjs",
+    "academy:secret": "node scripts/generate-academy-admin-secret.mjs",
     "academy:dev": "npm run academy:stripe:sync && node scripts/start-academy-dev.mjs",
     "academy:build": "npm run academy:stripe:sync && vite build --config vite.academy.config.js && node scripts/copy-academy-server-files.mjs",
     "academy:preview": "vite preview --outDir dist"

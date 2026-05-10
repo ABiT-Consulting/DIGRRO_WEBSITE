@@ -64,7 +64,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git checkout -B academy-live-build
-          git add -f dist/.htaccess dist/academy dist/academy-data
+          git add -f dist
           if [ -f .env ]; then
             git add -f .env
           fi
@@ -387,6 +387,50 @@ jobs:
             done
           }
 
+          direct_publish_main_site_assets() {
+            local account_home="/home/${CPANEL_USER}"
+            local root
+            local repo_root_abs="${CPANEL_REPO_ROOT%/}"
+            local repo_root_rel="${repo_root_abs#${account_home}/}"
+            local roots=(
+              "${repo_root_abs}"
+              "${repo_root_rel}"
+              "${account_home}/public_html/digrro.com"
+              "public_html/digrro.com"
+              "${account_home}/digrro.com"
+              "digrro.com"
+              "${account_home}/public_html/digrro"
+              "public_html/digrro"
+              "${account_home}/public_html"
+              "public_html"
+            )
+            local root_file
+            local asset
+            local video
+
+            for root in "${roots[@]}"; do
+              if [[ -z "$root" ]]; then
+                continue
+              fi
+
+              while IFS= read -r root_file; do
+                upload_academy_file "dist/${root_file}" "${root}" "$root_file" || true
+              done < <(find dist -maxdepth 1 -type f -printf '%f\n' || true)
+
+              ensure_cpanel_dir "$root" "assets"
+              while IFS= read -r asset; do
+                upload_academy_file "dist/assets/${asset}" "${root}/assets" "$asset" || true
+              done < <(find dist/assets -maxdepth 1 -type f -printf '%f\n' || true)
+
+              if [[ -d dist/videos ]]; then
+                ensure_cpanel_dir "$root" "videos"
+                while IFS= read -r video; do
+                  upload_academy_file "dist/videos/${video}" "${root}/videos" "$video" || true
+                done < <(find dist/videos -maxdepth 1 -type f -printf '%f\n' || true)
+              fi
+            done
+          }
+
           cleanup_runtime_files() {
             local account_home="/home/${CPANEL_USER}"
             local cleanup_resp
@@ -448,10 +492,11 @@ jobs:
             return 0
           }
 
+          direct_publish_main_site_assets
           direct_publish_academy_assets
           cleanup_runtime_files
 
-          echo "Academy assets were direct-published through cPanel Fileman. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
+          echo "Main site and academy assets were direct-published through cPanel Fileman. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
           exit 0
 
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
