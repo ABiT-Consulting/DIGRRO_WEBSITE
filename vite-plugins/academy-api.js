@@ -7,6 +7,25 @@ import crypto from 'node:crypto';
 
 const DEFAULT_COURSES = [
   {
+    key: 'test',
+    label: 'Academy Login Test',
+    amountUsd: 10,
+    durationText: 'Login test',
+    audienceText: 'Stripe checkout',
+    badge: 'Test plan',
+    description: 'Use this to verify registration, payment, and student login.',
+    features: [
+      'Create a student account with email and password',
+      'Complete a low-cost Stripe checkout',
+      'Log in and confirm dashboard access'
+    ],
+    checkoutDescription: 'Digrro Academy test checkout for confirming registration, Stripe payment, and student login access.',
+    teacherName: 'Digrro Faculty',
+    learningUrl: '',
+    displayOrder: 0,
+    isActive: true
+  },
+  {
     key: 'sprint',
     label: 'AI Marketing Sprint',
     amountUsd: 200,
@@ -77,10 +96,28 @@ function nowSec() { return Math.floor(Date.now() / 1000); }
 
 function makeStorage(dataFile) {
   function ensure() {
-    if (fs.existsSync(dataFile)) return;
     fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-    const seeded = DEFAULT_COURSES.map((c, i) => ({ id: i + 1, ...c }));
-    fs.writeFileSync(dataFile, JSON.stringify(seeded, null, 2));
+    let courses = [];
+    if (fs.existsSync(dataFile)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+        courses = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        courses = [];
+      }
+    }
+
+    const existingKeys = new Set(courses.map((course) => course && course.key).filter(Boolean));
+    let changed = courses.length === 0;
+    for (const course of DEFAULT_COURSES) {
+      if (existingKeys.has(course.key)) continue;
+      courses.push({ id: nextId(courses), ...course });
+      changed = true;
+    }
+
+    if (changed) {
+      fs.writeFileSync(dataFile, JSON.stringify(courses, null, 2));
+    }
   }
   function readAll() {
     ensure();

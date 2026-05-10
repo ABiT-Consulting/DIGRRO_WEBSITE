@@ -1,9 +1,17 @@
 export const plans = {
+  test: {
+    key: 'test',
+    label: 'Academy Login Test',
+    amountUsd: 10,
+    priceText: '$10',
+    meta: 'Low-cost test checkout for verifying registration and student login',
+    checkoutDescription: 'Digrro Academy test checkout for confirming registration, Stripe payment, and student login access.'
+  },
   sprint: {
     key: 'sprint',
     label: 'AI Marketing Sprint',
-    amountUsd: 10,
-    priceText: '$10',
+    amountUsd: 200,
+    priceText: '$200',
     meta: 'Per seat public cohort or $1,750 for a private team workshop',
     checkoutDescription: 'Live AI marketing workshop for campaign planning, copy, and content workflow acceleration.'
   },

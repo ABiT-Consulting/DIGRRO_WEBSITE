@@ -413,6 +413,24 @@ function academy_retrieve_checkout_session(string $sessionId): array
 function academy_default_plans(): array
 {
     return [
+        'test' => [
+            'key' => 'test',
+            'label' => 'Academy Login Test',
+            'amountUsd' => 10,
+            'checkoutDescription' => 'Digrro Academy test checkout for confirming registration, Stripe payment, and student login access.',
+            'durationText' => 'Login test',
+            'audienceText' => 'Stripe checkout',
+            'badge' => 'Test plan',
+            'description' => 'Use this to verify registration, payment, and student login.',
+            'features' => [
+                'Create a student account with email and password',
+                'Complete a low-cost Stripe checkout',
+                'Log in and confirm dashboard access'
+            ],
+            'teacherName' => 'Digrro Faculty',
+            'learningUrl' => '',
+            'displayOrder' => 0
+        ],
         'sprint' => [
             'key' => 'sprint',
             'label' => 'AI Marketing Sprint',
@@ -472,15 +490,21 @@ function academy_default_plans(): array
 
 function academy_courses_seed_if_empty(PDO $pdo): void
 {
-    $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM academy_courses')->fetch()['c'];
-    if ($count > 0) {
-        return;
+    $existingRows = $pdo->query('SELECT plan_key FROM academy_courses')->fetchAll();
+    $existingKeys = [];
+    foreach ($existingRows as $row) {
+        $existingKeys[(string) ($row['plan_key'] ?? '')] = true;
     }
+
     $insert = $pdo->prepare(
         'INSERT INTO academy_courses (plan_key, label, amount_usd, duration_text, audience_text, badge, description, features_json, checkout_description, teacher_name, learning_url, display_order, is_active)
          VALUES (:plan_key, :label, :amount_usd, :duration_text, :audience_text, :badge, :description, :features_json, :checkout_description, :teacher_name, :learning_url, :display_order, 1)'
     );
     foreach (academy_default_plans() as $plan) {
+        if (isset($existingKeys[$plan['key']])) {
+            continue;
+        }
+
         $insert->execute([
             'plan_key' => $plan['key'],
             'label' => $plan['label'],
