@@ -43,7 +43,6 @@ if (
     || $addressLine === ''
     || $country === ''
     || $city === ''
-    || $pincode === ''
     || $checkoutReference === ''
 ) {
     academy_json_response(400, [

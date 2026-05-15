@@ -220,12 +220,11 @@ async function handleEnrollSubmit(event) {
   const addressLine = $('enrollment-address').value.trim();
   const country = $('enrollment-country').value.trim();
   const city = $('enrollment-city').value.trim();
-  const pincode = $('enrollment-pincode').value.trim();
   const company = $('enrollment-company').value.trim();
   const cref = ref();
 
   if (!plan) return setStatus(status, 'Please choose a valid training plan.', 'error');
-  if (!fullName || !email || !confirmEmail || !phoneNumber || !addressLine || !country || !city || !pincode) {
+  if (!fullName || !email || !confirmEmail || !phoneNumber || !addressLine || !country || !city) {
     return setStatus(status, 'Complete all required registration fields before checkout.', 'error');
   }
   if (email !== confirmEmail) return setStatus(status, 'Email and confirm email must match.', 'error');
@@ -241,7 +240,7 @@ async function handleEnrollSubmit(event) {
   const result = await postJson(api(REGISTER_API), {
     planKey: plan.key, checkoutReference: cref,
     fullName, email, confirmEmail, phoneNumber, password,
-    addressLine, country, city, pincode, company
+    addressLine, country, city, company
   });
 
   if (!result.ok) { setStatus(status, result.message || 'We could not complete your registration.', 'error'); submit.disabled = false; return; }
