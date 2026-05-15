@@ -249,7 +249,7 @@ try {
     try {
         $checkoutSession = academy_create_checkout_session($plan, $email, $phoneNumber, $checkoutReference);
         academy_record_checkout_session($pdo, $checkoutReference, $checkoutSession);
-        $checkoutUrl = (string) $checkoutSession['url'];
+        $checkoutUrl = academy_normalize_stripe_checkout_url((string) $checkoutSession['url']);
     } catch (Throwable $stripeError) {
         academy_json_response(502, [
             'ok' => false,

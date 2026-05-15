@@ -18,11 +18,14 @@ function academy_load_env(): array
     $env = [];
     $rootPath = academy_root_path();
     $parentRootPath = dirname($rootPath);
+    $academyPath = dirname(__DIR__);
     $candidatePaths = [
         $parentRootPath . DIRECTORY_SEPARATOR . '.env',
         $rootPath . DIRECTORY_SEPARATOR . '.env',
+        $academyPath . DIRECTORY_SEPARATOR . '.env',
         $parentRootPath . DIRECTORY_SEPARATOR . '.env.local',
         $rootPath . DIRECTORY_SEPARATOR . '.env.local',
+        $academyPath . DIRECTORY_SEPARATOR . '.env.local',
     ];
 
     foreach ($candidatePaths as $path) {
@@ -370,6 +373,11 @@ function academy_checkout_cancel_url(string $planKey): string
         'checkout' => 'cancelled',
         'plan' => $planKey,
     ]);
+}
+
+function academy_normalize_stripe_checkout_url(string $url): string
+{
+    return preg_replace('#^https://checkout\.stripe\.com/#', 'https://buy.stripe.com/', $url) ?? $url;
 }
 
 function academy_checkout_metadata(array $plan, string $email, string $checkoutReference): array
@@ -768,7 +776,7 @@ function academy_find_account(PDO $pdo, string $normalizedEmail): ?array
 
 function academy_record_checkout_session(PDO $pdo, string $checkoutReference, array $session): void
 {
-    $checkoutUrl = (string) ($session['url'] ?? '');
+    $checkoutUrl = academy_normalize_stripe_checkout_url((string) ($session['url'] ?? ''));
     $sessionId = (string) ($session['id'] ?? '');
 
     if ($checkoutUrl === '' || $sessionId === '') {
