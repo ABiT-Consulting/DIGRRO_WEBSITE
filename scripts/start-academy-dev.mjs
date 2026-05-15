@@ -68,6 +68,12 @@ function frontendDefaults(env) {
 
 const localEnv = loadLocalEnv();
 const env = { ...localEnv, ...process.env };
+if (!env.FRONTEND_URL && env.ACADEMY_BASE_URL) {
+  env.FRONTEND_URL = env.ACADEMY_BASE_URL;
+}
+if (!env.ACADEMY_ENV) {
+  env.ACADEMY_ENV = 'development';
+}
 const viteBin = path.join(
   workspaceRoot,
   'node_modules',
@@ -85,19 +91,22 @@ const viteArgs = [
   ...process.argv.slice(2),
 ];
 
-const children = [
-  spawn(process.execPath, ['server.cjs'], {
+const children = [];
+
+if (env.ACADEMY_START_LEGACY_API === '1') {
+  children.push(spawn(process.execPath, ['server.cjs'], {
     cwd: workspaceRoot,
     env,
     stdio: 'inherit',
-  }),
-  spawn(viteBin, viteArgs, {
-    cwd: workspaceRoot,
-    env,
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-  }),
-];
+  }));
+}
+
+children.push(spawn(viteBin, viteArgs, {
+  cwd: workspaceRoot,
+  env,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+}));
 
 let isShuttingDown = false;
 

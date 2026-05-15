@@ -17,12 +17,6 @@ const generatedLinksJsonPath = path.join(workspaceRoot, 'academy-server', 'api',
 const academyMetadata = {
   academy_system: 'digrro_academy'
 };
-const defaultPaymentLinkUrls = {
-  test: 'https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06',
-  sprint: 'https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06',
-  bootcamp: 'https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06',
-  corporate: 'https://buy.stripe.com/5kQ6oIbRnesna6M8McdjO05'
-};
 
 function parseEnvContent(content) {
   return content
@@ -92,19 +86,76 @@ function isLocalhostUrl(value) {
 }
 
 function inferStripeMode(secretKey) {
-  if (secretKey.startsWith('sk_test_')) {
+  if (secretKey.startsWith('sk_test_') || secretKey.startsWith('rk_test_')) {
     return 'test';
   }
 
-  if (secretKey.startsWith('sk_live_')) {
+  if (secretKey.startsWith('sk_live_') || secretKey.startsWith('rk_live_')) {
     return 'live';
   }
 
   return 'unknown';
 }
 
-function paymentLinkEnvName(planKey) {
-  return `STRIPE_PAYMENT_LINK_${planKey.toUpperCase()}`;
+function inferRequestedStripeMode(localEnv, academyBaseUrl) {
+  const modeArg = process.argv.find((arg) => arg.startsWith('--mode='));
+  const requestedMode = modeArg ? modeArg.slice('--mode='.length).toLowerCase().trim() : '';
+  if (['production', 'prod', 'live'].includes(requestedMode)) {
+    return 'live';
+  }
+
+  if (['development', 'dev', 'local', 'test', 'testing'].includes(requestedMode)) {
+    return 'test';
+  }
+
+  const configured = String(pickEnv(localEnv, 'STRIPE_MODE', 'STRIPE_ENV', 'ACADEMY_ENV', 'APP_ENV', 'NODE_ENV')).toLowerCase();
+  if (['production', 'prod', 'live'].includes(configured)) {
+    return 'live';
+  }
+
+  if (['development', 'dev', 'local', 'test', 'testing'].includes(configured)) {
+    return 'test';
+  }
+
+  return isLocalhostUrl(academyBaseUrl) ? 'test' : 'live';
+}
+
+function stripeKeyMatchesMode(secretKey, requestedMode) {
+  if (requestedMode === 'live') {
+    return secretKey.startsWith('sk_live_') || secretKey.startsWith('rk_live_');
+  }
+
+  return secretKey.startsWith('sk_test_') || secretKey.startsWith('rk_test_');
+}
+
+function pickStripeSecretKey(localEnv, requestedMode) {
+  const preferredNames = requestedMode === 'live'
+    ? ['STRIPE_SECRET_KEY_LIVE', 'STRIPE_LIVE_SECRET_KEY', 'STRIPE_SECRET_LIVE']
+    : ['STRIPE_SECRET_KEY_TEST', 'STRIPE_TEST_SECRET_KEY', 'STRIPE_SECRET_TEST'];
+  const preferred = pickEnv(localEnv, ...preferredNames);
+  if (preferred) {
+    return preferred;
+  }
+
+  const legacyNames = ['STRIPE_SECRET_KEY', 'STRIPE_SECRET', 'Secret key', 'secret_key', 'stripe_secret_key'];
+  for (const name of legacyNames) {
+    const value = pickEnv(localEnv, name);
+    if (value && stripeKeyMatchesMode(value, requestedMode)) {
+      return value;
+    }
+  }
+
+  return '';
+}
+
+function paymentLinkEnvNames(planKey, requestedMode) {
+  const plan = planKey.toUpperCase();
+  const mode = requestedMode.toUpperCase();
+  return [
+    `STRIPE_${mode}_PAYMENT_LINK_${plan}`,
+    `STRIPE_PAYMENT_LINK_${plan}_${mode}`,
+    `STRIPE_PAYMENT_LINK_${plan}`
+  ];
 }
 
 function isStripePaymentLinkUrl(value) {
@@ -133,6 +184,15 @@ function hasCompletePaymentLinks(config) {
   return planEntries.every((plan) => isStripePaymentLinkUrl(config.links?.[plan.key]?.url));
 }
 
+function generatedLinksMatchMode(config, requestedMode) {
+  if (!hasCompletePaymentLinks(config)) {
+    return false;
+  }
+
+  const linkMode = inferPaymentLinkModeFromUrls(config.links);
+  return requestedMode === 'live' ? linkMode === 'live' : linkMode === 'test';
+}
+
 async function readGeneratedLinksJson() {
   if (!existsSync(generatedLinksJsonPath)) {
     return null;
@@ -159,14 +219,14 @@ async function importGeneratedLinksModule() {
   }
 }
 
-async function loadExistingGeneratedLinks() {
+async function loadExistingGeneratedLinks(requestedMode) {
   const jsonConfig = await readGeneratedLinksJson();
-  if (hasCompletePaymentLinks(jsonConfig)) {
+  if (generatedLinksMatchMode(jsonConfig, requestedMode)) {
     return jsonConfig;
   }
 
   const moduleConfig = await importGeneratedLinksModule();
-  if (hasCompletePaymentLinks(moduleConfig)) {
+  if (generatedLinksMatchMode(moduleConfig, requestedMode)) {
     return moduleConfig;
   }
 
@@ -205,8 +265,8 @@ async function writeGeneratedConfig(config, label) {
   console.log(`Saved ${label} JSON to ${generatedLinksJsonPath}`);
 }
 
-async function writeExistingLinksFallback(academyBaseUrl, reason) {
-  const existingConfig = await loadExistingGeneratedLinks();
+async function writeExistingLinksFallback(academyBaseUrl, reason, requestedMode) {
+  const existingConfig = await loadExistingGeneratedLinks(requestedMode);
   if (!existingConfig) {
     return false;
   }
@@ -216,21 +276,31 @@ async function writeExistingLinksFallback(academyBaseUrl, reason) {
   return true;
 }
 
-function buildManualLinks(localEnv, academyBaseUrl) {
+async function writeRuntimeOnlyConfig(academyBaseUrl, reason, requestedMode) {
+  console.warn(`${reason} Writing ${requestedMode} runtime-only config without static Stripe Payment Links.`);
+  await writeGeneratedConfig({
+    mode: `${requestedMode}-runtime`,
+    generatedAt: new Date().toISOString(),
+    academyBaseUrl,
+    links: {}
+  }, `${requestedMode} runtime-only Stripe config`);
+}
+
+function buildManualLinks(localEnv, academyBaseUrl, requestedMode) {
   const links = {};
   const missingEnvNames = [];
 
   for (const plan of planEntries) {
-    const envName = paymentLinkEnvName(plan.key);
-    const paymentLinkUrl = trimTrailingSlash(pickEnv(localEnv, envName) || defaultPaymentLinkUrls[plan.key]);
+    const envNames = paymentLinkEnvNames(plan.key, requestedMode);
+    const paymentLinkUrl = trimTrailingSlash(pickEnv(localEnv, ...envNames));
 
     if (!paymentLinkUrl) {
-      missingEnvNames.push(envName);
+      missingEnvNames.push(envNames[0]);
       continue;
     }
 
     if (!isStripePaymentLinkUrl(paymentLinkUrl)) {
-      throw new Error(`${envName} must be a Stripe Payment Link URL that starts with https://buy.stripe.com/.`);
+      throw new Error(`${envNames[0]} must be a Stripe Payment Link URL that starts with https://buy.stripe.com/.`);
     }
 
     links[plan.key] = {
@@ -346,14 +416,20 @@ function toModuleFile(config) {
 
 async function main() {
   const localEnv = await loadLocalEnvFiles();
-  const stripeSecretKey = pickEnv(localEnv, 'STRIPE_SECRET_KEY', 'STRIPE_SECRET', 'Secret key');
   const academyBaseUrl = trimTrailingSlash(pickEnv(localEnv, 'FRONTEND_URL', 'ACADEMY_BASE_URL', 'VITE_ACADEMY_BASE_URL'));
 
   if (!academyBaseUrl) {
     throw new Error('FRONTEND_URL is required for Stripe payment link metadata.');
   }
 
-  const manualConfig = buildManualLinks(localEnv, academyBaseUrl);
+  const requestedMode = inferRequestedStripeMode(localEnv, academyBaseUrl);
+  if (process.argv.includes('--runtime-only')) {
+    await writeRuntimeOnlyConfig(academyBaseUrl, 'Static Payment Links are disabled for this build.', requestedMode);
+    return;
+  }
+
+  const stripeSecretKey = pickStripeSecretKey(localEnv, requestedMode);
+  const manualConfig = buildManualLinks(localEnv, academyBaseUrl, requestedMode);
   if (manualConfig.missingEnvNames.length === 0) {
     const generatedConfig = {
       mode: inferPaymentLinkModeFromUrls(manualConfig.links),
@@ -367,15 +443,25 @@ async function main() {
   }
 
   if (!stripeSecretKey) {
-    const reason = `Missing Stripe configuration (${manualConfig.missingEnvNames.join(', ')}).`;
-    if (await writeExistingLinksFallback(academyBaseUrl, reason)) {
+    const reason = `Missing ${requestedMode} Stripe configuration (${manualConfig.missingEnvNames.join(', ')}).`;
+    if (await writeExistingLinksFallback(academyBaseUrl, reason, requestedMode)) {
       return;
     }
 
-    throw new Error(`Missing Stripe configuration. Set STRIPE_SECRET_KEY to auto-create Payment Links, or set STRIPE_SECRET for compatibility, or set these existing Payment Link URLs in .env.local: ${manualConfig.missingEnvNames.join(', ')}.`);
+    if (requestedMode === 'test') {
+      await writeRuntimeOnlyConfig(academyBaseUrl, reason, requestedMode);
+      return;
+    }
+
+    await writeRuntimeOnlyConfig(academyBaseUrl, reason, requestedMode);
+    return;
   }
 
   const stripeMode = inferStripeMode(stripeSecretKey);
+  if (stripeMode !== requestedMode) {
+    throw new Error(`Configured Stripe key is ${stripeMode}, but ${requestedMode} mode was requested. Use STRIPE_SECRET_KEY_${requestedMode === 'live' ? 'LIVE' : 'TEST'} or adjust ACADEMY_ENV.`);
+  }
+
   const stripe = new Stripe(stripeSecretKey);
   const links = {};
 
@@ -396,7 +482,12 @@ async function main() {
     }
   } catch (error) {
     const reason = `Stripe sync failed: ${error instanceof Error ? error.message : error}.`;
-    if (await writeExistingLinksFallback(academyBaseUrl, reason)) {
+    if (await writeExistingLinksFallback(academyBaseUrl, reason, requestedMode)) {
+      return;
+    }
+
+    if (requestedMode === 'test') {
+      await writeRuntimeOnlyConfig(academyBaseUrl, reason, requestedMode);
       return;
     }
 

@@ -23,15 +23,16 @@ The backend merges these files, with non-empty `.env.local` values overriding `.
 1. `.env`
 2. `.env.local`
 
-Local development can keep the Stripe test secret in `.env.local` so GitHub push protection does not block it.
+Local development can keep the Stripe test secret in `.env.local` so GitHub push protection does not block it. Use explicit test/live names so local runs cannot accidentally use the live Digrro account.
 
 The PHP backend reads these Stripe keys:
 
-- `STRIPE_SECRET_KEY`
-- `secret_key`
-- `Secret key`
-- `STRIPE_WEBHOOK_SECRET` for the optional Stripe webhook endpoint at `academy/api/stripe-webhook.php`
+- `STRIPE_SECRET_KEY_TEST` for local/development and test-mode Checkout Sessions
+- `STRIPE_SECRET_KEY_LIVE` for production/live Checkout Sessions
+- `STRIPE_SECRET_KEY`, `secret_key`, and `Secret key` as legacy aliases only when the key prefix matches the runtime environment
+- `STRIPE_WEBHOOK_SECRET_TEST`, `STRIPE_WEBHOOK_SECRET_LIVE`, or `STRIPE_WEBHOOK_SECRET` for the optional Stripe webhook endpoint at `academy/api/stripe-webhook.php`
 - `ACADEMY_BASE_URL`
+- `ACADEMY_ENV`, `APP_ENV`, or `STRIPE_MODE` to force `development`/`test` or `production`/`live`; otherwise localhost is treated as development and public hosts as production
 - `ACADEMY_STUDENT_TOKEN_SECRET` and `ACADEMY_STUDENT_TOKEN_TTL` for student portal sessions. If the student secret is omitted, `ACADEMY_ADMIN_TOKEN_SECRET` is reused.
 - `ACADEMY_PASSWORD_RESET_TTL` for password reset links, default `3600` seconds.
 
@@ -54,6 +55,26 @@ Optional standard aliases also work in the PHP backend:
 - `SMTP_FROM_NAME`
 
 Live Stripe credentials are runtime settings on the cPanel server. Builds no longer need Stripe credentials because Checkout Sessions are created by PHP after registration.
+
+Recommended local `.env.local` Stripe settings:
+
+```bash
+ACADEMY_ENV=development
+FRONTEND_URL=http://127.0.0.1:5174
+STRIPE_SECRET_KEY_TEST=sk_test_...
+```
+
+Recommended live cPanel runtime settings:
+
+```bash
+ACADEMY_ENV=production
+ACADEMY_BASE_URL=https://digrro.com/academy
+STRIPE_SECRET_KEY_LIVE=rk_live_...
+```
+
+`npm run academy:dev` uses the Vite local API and stores developer accounts in `academy-data/platform.json`. With `STRIPE_SECRET_KEY_TEST`, local registration creates Stripe test Checkout Sessions. Without a test key, local dev falls back to a mock paid checkout so live credentials are still not used.
+
+`npm run academy:build` writes a runtime-only Stripe config into the build output. It does not call Stripe or bake local test links into the production bundle; the live cPanel `.env.local` supplies `STRIPE_SECRET_KEY_LIVE` at runtime.
 
 ## cPanel deploy behavior
 

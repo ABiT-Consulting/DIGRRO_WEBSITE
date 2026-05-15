@@ -90,6 +90,64 @@ function academy_env(array $keys, ?string $default = null): ?string
     return $default;
 }
 
+function academy_env_values(array $keys): array
+{
+    $env = academy_load_env();
+    $values = [];
+
+    foreach ($keys as $key) {
+        $serverValue = $_SERVER[$key] ?? null;
+        if (is_string($serverValue) && trim($serverValue) !== '') {
+            $values[] = trim($serverValue);
+        }
+
+        $runtimeValue = getenv($key);
+        if (is_string($runtimeValue) && trim($runtimeValue) !== '') {
+            $values[] = trim($runtimeValue);
+        }
+
+        if (isset($env[$key]) && trim($env[$key]) !== '') {
+            $values[] = trim($env[$key]);
+        }
+    }
+
+    return array_values(array_unique($values));
+}
+
+function academy_runtime_environment(): string
+{
+    $configured = strtolower((string) academy_env(['ACADEMY_ENV', 'APP_ENV', 'STRIPE_MODE', 'STRIPE_ENV'], ''));
+    if (in_array($configured, ['production', 'prod', 'live'], true)) {
+        return 'production';
+    }
+
+    if (in_array($configured, ['development', 'dev', 'local', 'test', 'testing'], true)) {
+        return 'development';
+    }
+
+    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '' || str_contains($host, 'localhost') || str_starts_with($host, '127.') || $host === '::1') {
+        return 'development';
+    }
+
+    return 'production';
+}
+
+function academy_stripe_key_matches_environment(string $key, string $environment): bool
+{
+    if ($environment === 'production') {
+        return str_starts_with($key, 'sk_live_') || str_starts_with($key, 'rk_live_');
+    }
+
+    return str_starts_with($key, 'sk_test_') || str_starts_with($key, 'rk_test_');
+}
+
+function academy_first_env_value(array $keys): ?string
+{
+    $values = academy_env_values($keys);
+    return $values[0] ?? null;
+}
+
 function academy_json_response(int $status, array $payload): never
 {
     http_response_code($status);
@@ -244,17 +302,45 @@ function academy_build_checkout_url(string $baseUrl, string $email, string $chec
 
 function academy_stripe_secret_key(): ?string
 {
-    return academy_env([
+    $environment = academy_runtime_environment();
+    $preferredKeys = $environment === 'production'
+        ? ['STRIPE_SECRET_KEY_LIVE', 'STRIPE_LIVE_SECRET_KEY', 'STRIPE_SECRET_LIVE', 'stripe_secret_key_live', 'secret_key_live']
+        : ['STRIPE_SECRET_KEY_TEST', 'STRIPE_TEST_SECRET_KEY', 'STRIPE_SECRET_TEST', 'stripe_secret_key_test', 'secret_key_test'];
+
+    $preferred = academy_first_env_value($preferredKeys);
+    if (is_string($preferred) && $preferred !== '') {
+        return $preferred;
+    }
+
+    foreach (academy_env_values([
         'STRIPE_SECRET_KEY',
+        'STRIPE_SECRET',
         'STRIPE_SECRET_KEY_LIVE',
+        'STRIPE_SECRET_KEY_TEST',
         'stripe_secret_key',
         'secret_key',
         'Secret key',
-    ]);
+    ]) as $value) {
+        if (academy_stripe_key_matches_environment($value, $environment)) {
+            return $value;
+        }
+    }
+
+    return null;
 }
 
 function academy_stripe_webhook_secret(): ?string
 {
+    $environment = academy_runtime_environment();
+    $preferredKeys = $environment === 'production'
+        ? ['STRIPE_WEBHOOK_SECRET_LIVE', 'STRIPE_LIVE_WEBHOOK_SECRET']
+        : ['STRIPE_WEBHOOK_SECRET_TEST', 'STRIPE_TEST_WEBHOOK_SECRET'];
+
+    $preferred = academy_first_env_value($preferredKeys);
+    if (is_string($preferred) && $preferred !== '') {
+        return $preferred;
+    }
+
     return academy_env([
         'STRIPE_WEBHOOK_SECRET',
         'stripe_webhook_secret',
@@ -528,6 +614,8 @@ function academy_default_plans(): array
 
 function academy_courses_seed_if_empty(PDO $pdo): void
 {
+    $pdo->exec("UPDATE academy_courses SET teacher_name = 'Digrro Trainer' WHERE teacher_name = 'Digrro Faculty'");
+
     $existingRows = $pdo->query('SELECT plan_key FROM academy_courses')->fetchAll();
     $existingKeys = [];
     foreach ($existingRows as $row) {
