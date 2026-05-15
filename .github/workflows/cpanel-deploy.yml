@@ -95,6 +95,10 @@ jobs:
           CPANEL_REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
           CPANEL_BRANCH: cpanel-deploy
           CPANEL_INSECURE: ${{ secrets.CPANEL_INSECURE }}
+          STRIPE_SECRET_KEY_LIVE: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
+          STRIPE_SECRET_KEY_FALLBACK: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ACADEMY_BASE_URL_SECRET: ${{ secrets.ACADEMY_BASE_URL }}
         run: |
           set -euo pipefail
 
@@ -387,6 +391,63 @@ jobs:
             done
           }
 
+          create_academy_runtime_env() {
+            local output_file="$1"
+            local stripe_secret_key="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-}}"
+            local academy_base_url="${ACADEMY_BASE_URL_SECRET:-https://digrro.com/academy}"
+
+            if [[ -z "${stripe_secret_key}" ]]; then
+              echo "::warning::Skipping academy runtime env publish because STRIPE_SECRET_KEY_LIVE or STRIPE_SECRET_KEY is not configured."
+              return 1
+            fi
+
+            {
+              printf 'STRIPE_SECRET_KEY=%s\n' "${stripe_secret_key}"
+              printf 'secret_key=%s\n' "${stripe_secret_key}"
+              printf 'ACADEMY_BASE_URL=%s\n' "${academy_base_url}"
+              if [[ -n "${STRIPE_WEBHOOK_SECRET:-}" ]]; then
+                printf 'STRIPE_WEBHOOK_SECRET=%s\n' "${STRIPE_WEBHOOK_SECRET}"
+              fi
+            } > "${output_file}"
+          }
+
+          direct_publish_academy_runtime_env() {
+            local account_home="/home/${CPANEL_USER}"
+            local root
+            local runtime_env_file
+            local repo_root_abs="${CPANEL_REPO_ROOT%/}"
+            local repo_root_rel="${repo_root_abs#${account_home}/}"
+            local roots=(
+              "${repo_root_abs}"
+              "${repo_root_rel}"
+              "${account_home}/public_html/digrro.com"
+              "public_html/digrro.com"
+              "${account_home}/digrro.com"
+              "digrro.com"
+              "${account_home}/public_html/digrro"
+              "public_html/digrro"
+              "${account_home}/public_html"
+              "public_html"
+            )
+
+            runtime_env_file="$(mktemp)"
+            if ! create_academy_runtime_env "${runtime_env_file}"; then
+              rm -f "${runtime_env_file}"
+              return 0
+            fi
+
+            for root in "${roots[@]}"; do
+              if [[ -z "$root" ]]; then
+                continue
+              fi
+
+              ensure_cpanel_dir "$root" "academy"
+              publish_academy_file "${runtime_env_file}" "${root}/academy" ".env.local"
+            done
+
+            rm -f "${runtime_env_file}"
+          }
+
           direct_publish_main_site_assets() {
             local account_home="/home/${CPANEL_USER}"
             local root
@@ -494,9 +555,10 @@ jobs:
 
           direct_publish_main_site_assets
           direct_publish_academy_assets
+          direct_publish_academy_runtime_env
           cleanup_runtime_files
 
-          echo "Main site and academy assets were direct-published through cPanel Fileman. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
+          echo "Main site, academy assets, and academy runtime env were direct-published through cPanel Fileman. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
           exit 0
 
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
