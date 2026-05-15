@@ -34,7 +34,7 @@ if ($token !== '') {
 
             if ($checkoutReference !== '') {
                 $enrollmentLookup = $pdo->prepare(
-                    'SELECT checkout_url
+                    'SELECT *
                      FROM academy_enrollments
                      WHERE account_id = :account_id
                        AND checkout_reference = :checkout_reference
@@ -47,7 +47,7 @@ if ($token !== '') {
                 ]);
             } else {
                 $enrollmentLookup = $pdo->prepare(
-                    'SELECT checkout_url
+                    'SELECT *
                      FROM academy_enrollments
                      WHERE account_id = :account_id
                      ORDER BY id DESC
@@ -57,7 +57,9 @@ if ($token !== '') {
             }
 
             $enrollment = $enrollmentLookup->fetch();
-            if (is_array($enrollment) && is_string($enrollment['checkout_url'] ?? null)) {
+            if (is_array($enrollment)) {
+                $course = academy_course_by_plan_key($pdo, (string) ($enrollment['plan_key'] ?? ''));
+                $enrollment = academy_refresh_enrollment_checkout_session($pdo, $enrollment, $course);
                 $checkoutUrl = trim($enrollment['checkout_url']);
             }
         }

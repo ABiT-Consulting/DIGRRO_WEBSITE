@@ -380,6 +380,16 @@ function academy_normalize_stripe_checkout_url(string $url): string
     return preg_replace('#^https://checkout\.stripe\.com/#', 'https://buy.stripe.com/', $url) ?? $url;
 }
 
+function academy_checkout_url_needs_refresh(string $url): bool
+{
+    $url = academy_normalize_stripe_checkout_url(trim($url));
+    if ($url === '') {
+        return true;
+    }
+
+    return preg_match('#^https://buy\.stripe\.com/c/pay/cs_(live|test)_#', $url) !== 1;
+}
+
 function academy_checkout_metadata(array $plan, string $email, string $checkoutReference): array
 {
     return [
@@ -798,6 +808,60 @@ function academy_record_checkout_session(PDO $pdo, string $checkoutReference, ar
         'payment_status' => (string) ($session['payment_status'] ?? 'unpaid'),
         'checkout_reference' => $checkoutReference,
     ]);
+}
+
+function academy_refresh_enrollment_checkout_session(PDO $pdo, array $row, ?array $course): array
+{
+    if (academy_enrollment_is_paid($row)) {
+        return $row;
+    }
+
+    $currentUrl = (string) ($row['checkout_url'] ?? '');
+    if (!academy_checkout_url_needs_refresh($currentUrl)) {
+        $normalizedUrl = academy_normalize_stripe_checkout_url($currentUrl);
+        if ($normalizedUrl !== $currentUrl && trim($normalizedUrl) !== '') {
+            $statement = $pdo->prepare(
+                'UPDATE academy_enrollments
+                 SET checkout_url = :checkout_url,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                'checkout_url' => $normalizedUrl,
+                'id' => (int) $row['id'],
+            ]);
+            $row['checkout_url'] = $normalizedUrl;
+        }
+        return $row;
+    }
+
+    $checkoutReference = trim((string) ($row['checkout_reference'] ?? ''));
+    $email = academy_normalize_email((string) ($row['email'] ?? ''));
+    if ($checkoutReference === '' || $email === '') {
+        return $row;
+    }
+
+    $plan = $course ?: academy_course_by_plan_key($pdo, (string) ($row['plan_key'] ?? ''));
+    if ($plan === null) {
+        return $row;
+    }
+
+    try {
+        $session = academy_create_checkout_session(
+            $plan,
+            $email,
+            (string) ($row['phone_number'] ?? ''),
+            $checkoutReference
+        );
+        academy_record_checkout_session($pdo, $checkoutReference, $session);
+        $row['checkout_url'] = academy_normalize_stripe_checkout_url((string) ($session['url'] ?? ''));
+        $row['stripe_checkout_session_id'] = (string) ($session['id'] ?? '');
+        $row['payment_status'] = (string) ($session['payment_status'] ?? 'unpaid');
+    } catch (Throwable $error) {
+        return $row;
+    }
+
+    return $row;
 }
 
 function academy_checkout_session_is_paid(array $session): bool
@@ -1364,6 +1428,10 @@ function academy_student_dashboard(PDO $pdo, array $account): array
     foreach ($rows as $row) {
         $course = academy_course_by_plan_key($pdo, (string) $row['plan_key']);
         $isPaid = academy_enrollment_is_paid($row);
+        if (!$isPaid) {
+            $row = academy_refresh_enrollment_checkout_session($pdo, $row, $course);
+            $isPaid = academy_enrollment_is_paid($row);
+        }
         $enrollments[] = [
             'id' => (int) $row['id'],
             'planKey' => (string) $row['plan_key'],
