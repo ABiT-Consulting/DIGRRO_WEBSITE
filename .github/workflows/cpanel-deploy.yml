@@ -47,11 +47,17 @@ jobs:
 
           export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-$repo_stripe_secret}}"
           export ACADEMY_BASE_URL="${ACADEMY_BASE_URL_SECRET:-${repo_academy_base_url:-https://digrro.com/academy}}"
+          export STRIPE_PAYMENT_LINK_TEST="https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06"
           export STRIPE_PAYMENT_LINK_SPRINT="https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06"
           export STRIPE_PAYMENT_LINK_BOOTCAMP="https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06"
           export STRIPE_PAYMENT_LINK_CORPORATE="https://buy.stripe.com/5kQ6oIbRnesna6M8McdjO05"
 
-          npm run academy:build
+          if ! npm run academy:stripe:sync; then
+            echo "::warning::Stripe payment link sync failed. Continuing with checked-in payment links because production checkout sessions are created at runtime."
+          fi
+
+          npx vite build --config vite.academy.config.js
+          node scripts/copy-academy-server-files.mjs
 
       - name: Push academy build to cpanel-deploy
         shell: bash
