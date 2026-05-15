@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Digrro Academy Teacher Portal</title>
+    <title>Digrro Academy Trainer Portal</title>
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/png" sizes="64x64" href="../favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,7 +19,7 @@
       <div class="container topbar-inner">
         <a class="brand" href="./index.html">
           <img src="../white_logo_digrro.png" alt="Digrro" />
-          <span>Teacher Portal</span>
+          <span>Trainer Portal</span>
         </a>
         <nav class="topbar-links">
           <a class="nav-link" href="./index.html">Public page</a>
@@ -33,9 +33,9 @@
       <section class="hero" id="admin-login-view">
         <div class="container" style="max-width: 460px; margin: 0 auto;">
           <div class="login-card">
-            <span class="eyebrow">Teacher login</span>
+            <span class="eyebrow">Trainer login</span>
             <h2 style="margin-top: 0.75rem;">Sign in to manage courses</h2>
-            <p>Use the teacher email and password configured in your .env file.</p>
+            <p>Use the trainer email and password configured in your .env file.</p>
 
             <form id="admin-login-form" class="field-stack" novalidate>
               <div class="field">
@@ -47,7 +47,7 @@
                 <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
               </div>
               <div class="form-status" id="admin-login-status" role="status" aria-live="polite">
-                Enter your teacher credentials to continue.
+                Enter your trainer credentials to continue.
               </div>
               <button class="btn btn-primary btn-block" type="submit" id="admin-login-submit">Login</button>
             </form>
@@ -62,7 +62,7 @@
             <div>
               <span class="section-kicker">Courses</span>
               <h2 class="section-title" style="margin-top: 0.4rem;">Manage Academy courses</h2>
-              <p class="section-desc">Teachers can add courses, set pricing, and publish the class access link students receive after payment.</p>
+              <p class="section-desc">Trainers can add courses, set pricing, and publish the class access link students receive after payment.</p>
             </div>
             <button class="btn btn-primary" type="button" id="admin-new-course">+ New course</button>
           </div>
@@ -113,8 +113,8 @@
               <input id="course-audience" type="text" placeholder="e.g. 8 live sessions" />
             </div>
             <div class="field">
-              <label for="course-teacher">Teacher name</label>
-              <input id="course-teacher" type="text" placeholder="e.g. Digrro Faculty" />
+              <label for="course-teacher">Trainer name</label>
+              <input id="course-teacher" type="text" placeholder="e.g. Digrro Trainer" />
             </div>
             <div class="field">
               <label for="course-badge">Badge (optional)</label>
@@ -163,7 +163,7 @@
 
     <footer class="footer">
       <div class="container footer-inner">
-        <div class="footer-copy">Copyright Digrro Academy Teacher Portal. Restricted area.</div>
+        <div class="footer-copy">Copyright Digrro Academy Trainer Portal. Restricted area.</div>
         <a class="btn btn-ghost" href="./index.html">Back to public page</a>
       </div>
     </footer>

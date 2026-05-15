@@ -465,7 +465,7 @@ function academy_default_plans(): array
                 'Complete a low-cost Stripe checkout',
                 'Log in and confirm dashboard access'
             ],
-            'teacherName' => 'Digrro Faculty',
+            'teacherName' => 'Digrro Trainer',
             'learningUrl' => '',
             'displayOrder' => 0
         ],
@@ -483,7 +483,7 @@ function academy_default_plans(): array
                 'Hooks, offers and content planning',
                 'Quick-start prompt pack'
             ],
-            'teacherName' => 'Digrro Faculty',
+            'teacherName' => 'Digrro Trainer',
             'learningUrl' => '',
             'displayOrder' => 1
         ],
@@ -501,7 +501,7 @@ function academy_default_plans(): array
                 'AI scripting, editing, captions, repurposing',
                 'Capstone and certificate pathway'
             ],
-            'teacherName' => 'Digrro Faculty',
+            'teacherName' => 'Digrro Trainer',
             'learningUrl' => '',
             'displayOrder' => 2
         ],
@@ -519,7 +519,7 @@ function academy_default_plans(): array
                 'Private sessions and SOP handoff',
                 'Management rollout support'
             ],
-            'teacherName' => 'Digrro Faculty',
+            'teacherName' => 'Digrro Trainer',
             'learningUrl' => '',
             'displayOrder' => 3
         ]
@@ -553,7 +553,7 @@ function academy_courses_seed_if_empty(PDO $pdo): void
             'description' => $plan['description'] ?? '',
             'features_json' => json_encode($plan['features'] ?? []),
             'checkout_description' => $plan['checkoutDescription'] ?? '',
-            'teacher_name' => $plan['teacherName'] ?? 'Digrro Faculty',
+            'teacher_name' => $plan['teacherName'] ?? 'Digrro Trainer',
             'learning_url' => $plan['learningUrl'] ?? '',
             'display_order' => $plan['displayOrder'] ?? 0
         ]);
@@ -810,14 +810,91 @@ function academy_record_checkout_session(PDO $pdo, string $checkoutReference, ar
     ]);
 }
 
+function academy_plan_matching_amount(float $amountUsd): ?array
+{
+    foreach (academy_plans() as $plan) {
+        if (abs((float) ($plan['amountUsd'] ?? -1) - $amountUsd) < 0.01) {
+            return $plan;
+        }
+    }
+
+    return null;
+}
+
+function academy_checkout_plan_for_enrollment(PDO $pdo, array $row, ?array $course): array
+{
+    $amountUsd = (float) ($row['amount_usd'] ?? 0);
+    $plan = $course;
+    $changed = false;
+    $courseAmountMismatch = $amountUsd > 0
+        && $plan !== null
+        && abs((float) ($plan['amountUsd'] ?? 0) - $amountUsd) >= 0.01;
+
+    if ($amountUsd > 0 && ($plan === null || $courseAmountMismatch)) {
+        $matchedPlan = academy_plan_matching_amount($amountUsd);
+        if ($matchedPlan !== null) {
+            $plan = $matchedPlan;
+            $changed = true;
+        } elseif ($courseAmountMismatch) {
+            $changed = true;
+        }
+    }
+
+    if ($plan === null) {
+        $plan = [
+            'key' => (string) ($row['plan_key'] ?? ''),
+            'label' => (string) ($row['plan_name'] ?? 'Digrro Academy'),
+            'amountUsd' => $amountUsd,
+            'checkoutDescription' => (string) ($row['plan_name'] ?? 'Digrro Academy enrollment'),
+        ];
+    }
+
+    if ($amountUsd > 0) {
+        $plan['amountUsd'] = $amountUsd;
+    }
+
+    $planKey = (string) ($plan['key'] ?? '');
+    $planName = (string) ($plan['label'] ?? '');
+    if (
+        (int) ($row['id'] ?? 0) > 0
+        && ($planKey !== (string) ($row['plan_key'] ?? '') || $planName !== (string) ($row['plan_name'] ?? ''))
+    ) {
+        $statement = $pdo->prepare(
+            'UPDATE academy_enrollments
+             SET plan_key = :plan_key,
+                 plan_name = :plan_name,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        );
+        $statement->execute([
+            'plan_key' => $planKey,
+            'plan_name' => $planName,
+            'id' => (int) $row['id'],
+        ]);
+        $row['plan_key'] = $planKey;
+        $row['plan_name'] = $planName;
+        $changed = true;
+    }
+
+    return [
+        'row' => $row,
+        'plan' => $plan,
+        'changed' => $changed,
+    ];
+}
+
 function academy_refresh_enrollment_checkout_session(PDO $pdo, array $row, ?array $course): array
 {
     if (academy_enrollment_is_paid($row)) {
         return $row;
     }
 
+    $checkoutPlan = academy_checkout_plan_for_enrollment($pdo, $row, $course);
+    $row = $checkoutPlan['row'];
+    $plan = $checkoutPlan['plan'];
+    $forceRefresh = (bool) $checkoutPlan['changed'];
     $currentUrl = (string) ($row['checkout_url'] ?? '');
-    if (!academy_checkout_url_needs_refresh($currentUrl)) {
+    if (!$forceRefresh && !academy_checkout_url_needs_refresh($currentUrl)) {
         $normalizedUrl = academy_normalize_stripe_checkout_url($currentUrl);
         if ($normalizedUrl !== $currentUrl && trim($normalizedUrl) !== '') {
             $statement = $pdo->prepare(
@@ -838,11 +915,6 @@ function academy_refresh_enrollment_checkout_session(PDO $pdo, array $row, ?arra
     $checkoutReference = trim((string) ($row['checkout_reference'] ?? ''));
     $email = academy_normalize_email((string) ($row['email'] ?? ''));
     if ($checkoutReference === '' || $email === '') {
-        return $row;
-    }
-
-    $plan = $course ?: academy_course_by_plan_key($pdo, (string) ($row['plan_key'] ?? ''));
-    if ($plan === null) {
         return $row;
     }
 
@@ -1430,6 +1502,7 @@ function academy_student_dashboard(PDO $pdo, array $account): array
         $isPaid = academy_enrollment_is_paid($row);
         if (!$isPaid) {
             $row = academy_refresh_enrollment_checkout_session($pdo, $row, $course);
+            $course = academy_course_by_plan_key($pdo, (string) $row['plan_key']);
             $isPaid = academy_enrollment_is_paid($row);
         }
         $enrollments[] = [

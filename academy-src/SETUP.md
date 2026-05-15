@@ -11,7 +11,7 @@ The academy now uses a static Vite frontend plus a small PHP backend for registr
 5. `api/checkout-complete.php` verifies the returned Checkout Session with Stripe and marks paid enrollments in SQLite.
 6. `academy/api/login.php` and `academy/api/student.php` power the student portal, showing enrollments, payment status, and class/material links after payment.
 7. `academy/api/request-password-reset.php` sends a reset link to the registered login email, and `academy/reset-password.html` lets the student set a new password.
-8. `academy/admin.html` is the teacher portal for adding courses, pricing, and the private class/material URL unlocked for paid students.
+8. `academy/admin.html` is the trainer portal for adding courses, pricing, and the private class/material URL unlocked for paid students.
 
 ## Environment handling
 
