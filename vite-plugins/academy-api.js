@@ -613,6 +613,14 @@ function findValidResetAccount(data, token) {
   return account;
 }
 
+function normalizeApiPath(url) {
+  if (url.startsWith('/academy/api/')) {
+    return url.slice('/academy'.length);
+  }
+
+  return url;
+}
+
 export function academyApiPlugin(opts = {}) {
   const env = opts.env || {};
   const dataFile = path.resolve(opts.dataFile || './academy-data/courses.json');
@@ -624,7 +632,8 @@ export function academyApiPlugin(opts = {}) {
   const studentAuth = makeStudentAuth(env);
 
   async function handle(req, res, next) {
-    const url = (req.url || '').split('?')[0];
+    const rawUrl = (req.url || '').split('?')[0];
+    const url = normalizeApiPath(rawUrl);
     if (url === '/white_logo_digrro.png') {
       return sendFile(res, path.join(workspaceRoot, 'dist', 'white_logo_digrro.png'), 'image/png')
         || sendFile(res, path.join(workspaceRoot, 'white_logo_digrro.png'), 'image/png')
