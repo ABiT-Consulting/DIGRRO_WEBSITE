@@ -22,7 +22,8 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: resolve(__dirname, 'academy-src/index.html'),
-          admin: resolve(__dirname, 'academy-src/admin.html')
+          admin: resolve(__dirname, 'academy-src/admin.html'),
+          resetPassword: resolve(__dirname, 'academy-src/reset-password.html')
         }
       }
     },

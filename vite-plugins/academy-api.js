@@ -397,6 +397,15 @@ function studentDashboard(data, courses, account) {
   };
 }
 
+function findValidResetAccount(data, token) {
+  if (!token) return null;
+  const account = data.accounts.find((a) => a.passwordResetToken === token);
+  if (!account || account.passwordResetUsedAt) return null;
+  const expiresAt = Date.parse(account.passwordResetExpiresAt || '');
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return null;
+  return account;
+}
+
 export function academyApiPlugin(opts = {}) {
   const env = opts.env || {};
   const dataFile = path.resolve(opts.dataFile || './academy-data/courses.json');
@@ -592,6 +601,63 @@ export function academyApiPlugin(opts = {}) {
           token: studentAuth.issueToken(account),
           expiresIn: studentAuth.ttl(),
           dashboard: studentDashboard(data, courses, account)
+        });
+      }
+
+      if (url === '/api/request-password-reset' || url === '/api/request-password-reset.php') {
+        if (req.method !== 'POST') return send(res, 405, { ok: false, message: 'Method not allowed.' });
+        const body = await readBody(req);
+        const email = String(body.email || '').toLowerCase().trim();
+        if (!email) return send(res, 400, { ok: false, message: 'Enter the email used for your academy registration.' });
+
+        const message = 'If this email is registered, we sent a password reset link.';
+        const data = platform.read();
+        const account = data.accounts.find((a) => a.emailNormalized === email);
+        if (!account) return send(res, 200, { ok: true, message });
+
+        const token = crypto.randomBytes(32).toString('hex');
+        account.passwordResetToken = token;
+        account.passwordResetSentAt = new Date().toISOString();
+        account.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        account.passwordResetUsedAt = '';
+        platform.write(data);
+
+        const resetUrl = './reset-password.html?token=' + encodeURIComponent(token);
+        console.info('Local academy password reset link:', resetUrl);
+        return send(res, 200, { ok: true, message, resetUrl });
+      }
+
+      if (url === '/api/reset-password' || url === '/api/reset-password.php') {
+        const u = new URL('http://x' + req.url);
+        if (req.method === 'GET') {
+          const token = String(u.searchParams.get('token') || '');
+          const data = platform.read();
+          const account = findValidResetAccount(data, token);
+          if (!account) return send(res, 400, { ok: false, message: 'This reset link is invalid or has expired.' });
+          return send(res, 200, { ok: true, message: 'Reset link is valid.' });
+        }
+
+        if (req.method !== 'POST') return send(res, 405, { ok: false, message: 'Method not allowed.' });
+        const body = await readBody(req);
+        const token = String(body.token || '').trim();
+        const password = String(body.password || '');
+        const confirmPassword = String(body.confirmPassword || '');
+        if (password.length < 8) return send(res, 400, { ok: false, message: 'Use a password with at least 8 characters.' });
+        if (password !== confirmPassword) return send(res, 400, { ok: false, message: 'Password and confirm password must match.' });
+
+        const data = platform.read();
+        const account = findValidResetAccount(data, token);
+        if (!account) return send(res, 400, { ok: false, message: 'This reset link is invalid or has expired.' });
+
+        account.passwordHash = hashPassword(password);
+        account.passwordResetToken = '';
+        account.passwordResetExpiresAt = '';
+        account.passwordResetUsedAt = new Date().toISOString();
+        platform.write(data);
+
+        return send(res, 200, {
+          ok: true,
+          message: 'Your password has been reset. You can log in with the new password now.'
         });
       }
 

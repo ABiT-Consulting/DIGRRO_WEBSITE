@@ -6,6 +6,7 @@ import { loadAndRenderCourses } from './lib/courses.js';
 const REGISTER_API = './api/register.php';
 const LOGIN_API = './api/login.php';
 const STUDENT_API = './api/student.php';
+const REQUEST_PASSWORD_RESET_API = './api/request-password-reset.php';
 const STUDENT_TOKEN_KEY = 'digrro_academy_student_token';
 const $ = (id) => document.getElementById(id);
 let lastEnrollTrigger = null;
@@ -110,6 +111,9 @@ function openEnrollment(planKey, trigger) {
 }
 function openLogin(trigger) {
   const f = $('login-modal-form'); if (f) f.reset();
+  const saved = localStorage.getItem('digrro_academy_email');
+  const modalEmail = $('login-modal-email');
+  if (saved && modalEmail) modalEmail.value = saved;
   setStatus($('login-modal-status'), 'We will verify your account against your saved registration.');
   openModal('login-modal', 'login-modal-email', trigger, false);
 }
@@ -272,9 +276,40 @@ async function handleLoginSubmit(event, src) {
   if (dashboard) dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function handleForgot(event) {
+async function handleForgot(event) {
   event.preventDefault();
-  alert('For password resets, email Digrro at system@digrro.com from your registered email and we will send a reset link.');
+  const link = event.currentTarget;
+  if (link instanceof HTMLElement && link.getAttribute('aria-disabled') === 'true') return;
+
+  const form = link instanceof HTMLElement ? link.closest('form') : null;
+  const emailInput = form ? form.querySelector('input[type="email"]') : null;
+  const status = form ? form.querySelector('.form-status') : null;
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+
+  if (!email) {
+    setStatus(status, 'Enter your registered email first, then choose Forgot password.', 'error');
+    if (emailInput) emailInput.focus();
+    return;
+  }
+
+  if (link instanceof HTMLElement) {
+    link.setAttribute('aria-disabled', 'true');
+    link.classList.add('is-disabled');
+  }
+  setStatus(status, 'Sending a password reset link...');
+
+  const result = await postJson(api(REQUEST_PASSWORD_RESET_API), { email });
+
+  if (link instanceof HTMLElement) {
+    link.removeAttribute('aria-disabled');
+    link.classList.remove('is-disabled');
+  }
+
+  setStatus(
+    status,
+    result.message || (result.ok ? 'If this email is registered, we sent a password reset link.' : 'Could not send reset link.'),
+    result.ok ? 'success' : 'error'
+  );
 }
 
 // --- init ---

@@ -142,6 +142,26 @@ function academy_confirmation_url(string $token): string
     return academy_academy_base_url() . '/api/confirm.php?token=' . urlencode($token);
 }
 
+function academy_password_reset_url(string $token): string
+{
+    return academy_academy_base_url() . '/reset-password.html?token=' . urlencode($token);
+}
+
+function academy_password_reset_ttl_seconds(): int
+{
+    $configured = academy_env(['ACADEMY_PASSWORD_RESET_TTL']);
+    if (is_string($configured) && ctype_digit($configured)) {
+        return max(300, min((int) $configured, 24 * 3600));
+    }
+
+    return 3600;
+}
+
+function academy_password_reset_expires_at(): string
+{
+    return gmdate('Y-m-d H:i:s', time() + academy_password_reset_ttl_seconds());
+}
+
 function academy_generated_payment_links(): array
 {
     static $config = null;
@@ -656,10 +676,19 @@ function academy_pdo(): PDO
             email_confirmation_token TEXT,
             email_confirmation_sent_at TEXT,
             email_confirmed_at TEXT,
+            password_reset_token TEXT,
+            password_reset_sent_at TEXT,
+            password_reset_expires_at TEXT,
+            password_reset_used_at TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )'
     );
+
+    academy_ensure_table_column($pdo, 'academy_accounts', 'password_reset_token', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_accounts', 'password_reset_sent_at', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_accounts', 'password_reset_expires_at', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_accounts', 'password_reset_used_at', 'TEXT');
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS academy_enrollments (
@@ -720,6 +749,7 @@ function academy_pdo(): PDO
 
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_courses_plan_key_idx ON academy_courses(plan_key)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_email_normalized_idx ON academy_accounts(email_normalized)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_password_reset_token_idx ON academy_accounts(password_reset_token)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_account_id_idx ON academy_enrollments(account_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_email_idx ON academy_enrollments(email)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_checkout_session_idx ON academy_enrollments(stripe_checkout_session_id)');
@@ -911,7 +941,7 @@ function academy_smtp_escape(string $body): string
     return str_replace("\n", "\r\n", $body);
 }
 
-function academy_send_confirmation_email(array $recipient, array $plan): void
+function academy_send_plain_text_email(string $toEmail, string $toName, string $subject, string $body): void
 {
     $host = academy_smtp_value(['SMTP_HOST', 'Outgoing Server']);
     $port = (int) academy_smtp_value(['SMTP_PORT', 'SMTP Port']);
@@ -919,24 +949,6 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
     $password = academy_smtp_value(['SMTP_PASSWORD', 'password']);
     $fromEmail = academy_env(['SMTP_FROM_EMAIL', 'emailaddress'], $username) ?: $username;
     $fromName = academy_env(['SMTP_FROM_NAME'], 'Digrro Academy') ?: 'Digrro Academy';
-
-    $subject = academy_mail_header_value('Confirm your Digrro Academy registration');
-    $confirmationUrl = academy_confirmation_url((string) $recipient['email_confirmation_token']);
-    $body = implode("\n", [
-        'Hi ' . $recipient['full_name'] . ',',
-        '',
-        'Please confirm your Digrro Academy registration for ' . $plan['label'] . '.',
-        '',
-        'Confirmation link:',
-        $confirmationUrl,
-        '',
-        'Plan: ' . $plan['label'],
-        'Checkout reference: ' . $recipient['checkout_reference'],
-        '',
-        'If you did not start this registration, you can ignore this email.',
-        '',
-        'Digrro Academy'
-    ]);
 
     $transport = ($port === 465 ? 'ssl://' : '') . $host . ':' . $port;
     $socket = @stream_socket_client($transport, $errorNumber, $errorMessage, 30, STREAM_CLIENT_CONNECT);
@@ -961,14 +973,15 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
     academy_smtp_command($socket, base64_encode($username), [334]);
     academy_smtp_command($socket, base64_encode($password), [235]);
     academy_smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', [250]);
-    academy_smtp_command($socket, 'RCPT TO:<' . $recipient['email'] . '>', [250, 251]);
+    academy_smtp_command($socket, 'RCPT TO:<' . $toEmail . '>', [250, 251]);
     academy_smtp_command($socket, 'DATA', [354]);
 
+    $safeToName = $toName !== '' ? $toName : $toEmail;
     $headers = [
         'Date: ' . date(DATE_RFC2822),
         'From: ' . academy_mail_header_value($fromName) . ' <' . academy_mail_header_value($fromEmail) . '>',
-        'To: ' . academy_mail_header_value($recipient['full_name']) . ' <' . academy_mail_header_value($recipient['email']) . '>',
-        'Subject: ' . $subject,
+        'To: ' . academy_mail_header_value($safeToName) . ' <' . academy_mail_header_value($toEmail) . '>',
+        'Subject: ' . academy_mail_header_value($subject),
         'MIME-Version: 1.0',
         'Content-Type: text/plain; charset=UTF-8',
         'Content-Transfer-Encoding: 8bit'
@@ -978,6 +991,60 @@ function academy_send_confirmation_email(array $recipient, array $plan): void
     academy_smtp_expect($socket, [250]);
     academy_smtp_command($socket, 'QUIT', [221]);
     fclose($socket);
+}
+
+function academy_send_confirmation_email(array $recipient, array $plan): void
+{
+    $confirmationUrl = academy_confirmation_url((string) $recipient['email_confirmation_token']);
+    $body = implode("\n", [
+        'Hi ' . $recipient['full_name'] . ',',
+        '',
+        'Please confirm your Digrro Academy registration for ' . $plan['label'] . '.',
+        '',
+        'Confirmation link:',
+        $confirmationUrl,
+        '',
+        'Plan: ' . $plan['label'],
+        'Checkout reference: ' . $recipient['checkout_reference'],
+        '',
+        'If you did not start this registration, you can ignore this email.',
+        '',
+        'Digrro Academy'
+    ]);
+
+    academy_send_plain_text_email(
+        (string) $recipient['email'],
+        (string) $recipient['full_name'],
+        'Confirm your Digrro Academy registration',
+        $body
+    );
+}
+
+function academy_send_password_reset_email(array $recipient): void
+{
+    $ttlMinutes = (int) ceil(academy_password_reset_ttl_seconds() / 60);
+    $resetUrl = academy_password_reset_url((string) $recipient['password_reset_token']);
+    $fullName = trim((string) ($recipient['full_name'] ?? ''));
+    $body = implode("\n", [
+        'Hi ' . ($fullName !== '' ? $fullName : 'there') . ',',
+        '',
+        'Use the link below to reset your Digrro Academy password.',
+        '',
+        'Reset password link:',
+        $resetUrl,
+        '',
+        'This link expires in ' . $ttlMinutes . ' minutes.',
+        'If you did not request a password reset, you can ignore this email.',
+        '',
+        'Digrro Academy'
+    ]);
+
+    academy_send_plain_text_email(
+        (string) $recipient['email'],
+        $fullName,
+        'Reset your Digrro Academy password',
+        $body
+    );
 }
 
 function academy_admin_email_normalized(): ?string

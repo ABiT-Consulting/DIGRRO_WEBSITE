@@ -10,7 +10,8 @@ The academy now uses a static Vite frontend plus a small PHP backend for registr
 4. `register.php` creates a Stripe Checkout Session with the Stripe secret key from the runtime `.env`, stores the session on the enrollment, and redirects the user to Stripe.
 5. `api/checkout-complete.php` verifies the returned Checkout Session with Stripe and marks paid enrollments in SQLite.
 6. `academy/api/login.php` and `academy/api/student.php` power the student portal, showing enrollments, payment status, and class/material links after payment.
-7. `academy/admin.html` is the teacher portal for adding courses, pricing, and the private class/material URL unlocked for paid students.
+7. `academy/api/request-password-reset.php` sends a reset link to the registered login email, and `academy/reset-password.html` lets the student set a new password.
+8. `academy/admin.html` is the teacher portal for adding courses, pricing, and the private class/material URL unlocked for paid students.
 
 ## Environment handling
 
@@ -32,6 +33,7 @@ The PHP backend reads these Stripe keys:
 - `STRIPE_WEBHOOK_SECRET` for the optional Stripe webhook endpoint at `academy/api/stripe-webhook.php`
 - `ACADEMY_BASE_URL`
 - `ACADEMY_STUDENT_TOKEN_SECRET` and `ACADEMY_STUDENT_TOKEN_TTL` for student portal sessions. If the student secret is omitted, `ACADEMY_ADMIN_TOKEN_SECRET` is reused.
+- `ACADEMY_PASSWORD_RESET_TTL` for password reset links, default `3600` seconds.
 
 The PHP backend reads these runtime keys from `.env` at the deploy root:
 
