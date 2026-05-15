@@ -50,6 +50,10 @@ function loadLocalEnv() {
 function frontendDefaults(env) {
   const configuredUrl = env.FRONTEND_URL || env.ACADEMY_BASE_URL || '';
   const fallbackPort = env.VITE_DEV_PORT || '5174';
+  const configuredHost = env.VITE_DEV_HOST || env.DEV_HOST || '';
+  if (configuredHost) {
+    return { host: configuredHost, port: fallbackPort };
+  }
 
   if (!configuredUrl) {
     return { host: '127.0.0.1', port: fallbackPort };
@@ -57,6 +61,10 @@ function frontendDefaults(env) {
 
   try {
     const url = new URL(configuredUrl);
+    if (!['localhost', '127.0.0.1', '::1'].includes(url.hostname)) {
+      return { host: '127.0.0.1', port: url.port || fallbackPort };
+    }
+
     return {
       host: url.hostname || '127.0.0.1',
       port: url.port || fallbackPort,
