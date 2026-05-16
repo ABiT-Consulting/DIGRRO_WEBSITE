@@ -591,9 +591,8 @@ export function academyApiPlugin(opts = {}) {
   async function handle(req, res, next) {
     const rawUrl = (req.url || '').split('?')[0];
     const url = normalizeApiPath(rawUrl);
-    if (url === '/white_logo_digrro.png') {
-      return sendFile(res, path.join(workspaceRoot, 'dist', 'white_logo_digrro.png'), 'image/png')
-        || sendFile(res, path.join(workspaceRoot, 'white_logo_digrro.png'), 'image/png')
+    if (decodeURIComponent(url) === '/image_fc91df1d-53b0-439b-9c3e-c444469fda79-removebg-preview copy copy copy.png') {
+      return sendFile(res, path.join(workspaceRoot, 'dist', 'image_fc91df1d-53b0-439b-9c3e-c444469fda79-removebg-preview copy copy copy.png'), 'image/png')
         || next();
     }
     if (url === '/favicon.png') {
