@@ -271,6 +271,45 @@ ul {
   color: var(--text-muted);
 }
 
+.urgency-strip {
+  margin-top: 1.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 42rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(255, 190, 80, 0.35);
+  border-radius: 0.55rem;
+  background: rgba(255, 190, 80, 0.1);
+  color: #ffe2aa;
+  font-size: 0.9rem;
+}
+
+.urgency-strip strong {
+  color: var(--text);
+}
+
+.urgency-strip a {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.urgency-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 190, 80, 0.16);
+  color: #ffd28a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .hero-actions {
   margin-top: 1.75rem;
   display: flex;
@@ -527,6 +566,17 @@ ul {
   color: var(--text-subtle);
 }
 
+.seat-alert {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(255, 190, 80, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(255, 190, 80, 0.1);
+  color: #ffe2aa;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
 .plan-list {
   margin-top: 1rem;
   flex: 1 1 auto;
@@ -558,6 +608,11 @@ ul {
 
 .plan-action {
   margin-top: 1.25rem;
+}
+
+.plan button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 /* ---------- Student portal ---------- */

@@ -10,6 +10,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 
 try {
     $plans = academy_plans();
+    $pdo = academy_pdo();
 } catch (Throwable $e) {
     academy_json_response(500, ['ok' => false, 'message' => 'Could not load courses.']);
 }
@@ -19,6 +20,10 @@ foreach ($plans as $plan) {
     if (isset($plan['isActive']) && !$plan['isActive']) {
         continue;
     }
+    $seatLimit = (int) ($plan['seatLimit'] ?? 0);
+    $seatCount = academy_enrollment_count_for_plan($pdo, (string) ($plan['key'] ?? ''));
+    $seatsRemaining = $seatLimit > 0 ? max(0, $seatLimit - $seatCount) : null;
+
     $publicCourses[] = [
         'key' => $plan['key'] ?? '',
         'label' => $plan['label'] ?? '',
@@ -31,7 +36,10 @@ foreach ($plans as $plan) {
         'description' => $plan['description'] ?? '',
         'features' => $plan['features'] ?? [],
         'displayOrder' => $plan['displayOrder'] ?? 0,
-        'seatLimit' => (int) ($plan['seatLimit'] ?? 0)
+        'seatLimit' => $seatLimit,
+        'seatCount' => $seatCount,
+        'seatsRemaining' => $seatsRemaining,
+        'isFull' => $seatLimit > 0 && $seatsRemaining === 0
     ];
 }
 

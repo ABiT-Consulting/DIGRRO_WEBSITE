@@ -453,7 +453,11 @@ function checkoutCompleteHtml({ title, statusLabel, message, success }) {
 </html>`;
 }
 
-function publicView(course) {
+function publicView(course, data) {
+  const limit = seatLimit(course);
+  const seatCount = enrollmentCountForPlan(data, course.key);
+  const seatsRemaining = limit > 0 ? Math.max(0, limit - seatCount) : null;
+
   return {
     key: course.key,
     label: course.label,
@@ -466,7 +470,10 @@ function publicView(course) {
     description: course.description || '',
     features: Array.isArray(course.features) ? course.features : [],
     displayOrder: Number(course.displayOrder || 0),
-    seatLimit: seatLimit(course)
+    seatLimit: limit,
+    seatCount,
+    seatsRemaining,
+    isFull: limit > 0 && seatsRemaining === 0
   };
 }
 
@@ -600,10 +607,11 @@ export function academyApiPlugin(opts = {}) {
       // Public courses
       if (url === '/api/courses' || url === '/api/courses.php') {
         if (req.method !== 'GET') return send(res, 405, { ok: false, message: 'Method not allowed.' });
+        const platformData = platform.read();
         const list = store.readAll()
           .filter((c) => c.isActive && ALLOWED_PLAN_KEYS.has(c.key))
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-          .map(publicView);
+          .map((course) => publicView(course, platformData));
         return send(res, 200, { ok: true, courses: list });
       }
 

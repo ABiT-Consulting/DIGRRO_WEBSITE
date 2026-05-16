@@ -14,6 +14,15 @@ function priceText(amount) {
   return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
+function seatStatus(course) {
+  const limit = Number(course.seatLimit || 0);
+  if (!limit) return '';
+  const remaining = Number(course.seatsRemaining ?? limit);
+  if (remaining <= 0 || course.isFull) return 'Cohort full: join the waitlist with Digrro before payment reopens.';
+  if (remaining <= 5) return 'Last seats: only ' + remaining + ' of ' + limit + ' seats remain.';
+  return 'Limited intake: ' + remaining + ' of ' + limit + ' seats remain.';
+}
+
 function renderCourseCard(course, isFeatured) {
   const wrap = document.createElement('article');
   wrap.className = 'plan' + (isFeatured ? ' featured' : '');
@@ -26,7 +35,9 @@ function renderCourseCard(course, isFeatured) {
   if (course.teacherName) flags.push('<span class="plan-flag">' + escapeHtml(course.teacherName) + '</span>');
 
   const ctaClass = isFeatured ? 'btn btn-primary btn-block' : 'btn btn-secondary btn-block';
-  const ctaLabel = 'Enroll with Stripe';
+  const ctaLabel = course.isFull ? 'Cohort full' : 'Secure your seat';
+  const status = seatStatus(course);
+  const disabled = course.isFull ? ' disabled aria-disabled="true"' : '';
 
   wrap.innerHTML =
     (course.badge ? '<span class="plan-badge">' + escapeHtml(course.badge) + '</span>' : '') +
@@ -34,11 +45,12 @@ function renderCourseCard(course, isFeatured) {
     (flags.length ? '<div class="plan-flags">' + flags.join('') + '</div>' : '') +
     '<div class="plan-price">' + priceText(course.amountUsd) + '</div>' +
     (course.description ? '<div class="plan-meta">' + escapeHtml(course.description) + '</div>' : '') +
+    (status ? '<div class="seat-alert">' + escapeHtml(status) + '</div>' : '') +
     (features.length
       ? '<ul class="plan-list">' + features.map((f) => '<li>' + escapeHtml(f) + '</li>').join('') + '</ul>'
       : '') +
     '<div class="plan-action">' +
-      '<button class="' + ctaClass + '" type="button" data-enroll-plan="' + escapeHtml(course.key) + '">' +
+      '<button class="' + ctaClass + '" type="button" data-enroll-plan="' + escapeHtml(course.key) + '"' + disabled + '>' +
         escapeHtml(ctaLabel) +
       '</button>' +
     '</div>';

@@ -99,6 +99,14 @@ const closeAll = () => { closeEnroll(); closeLogin(); };
 function openEnrollment(planKey, trigger) {
   const plan = resolvePlan(planKey);
   if (!plan) return;
+  if (plan.isFull) {
+    setStatus(
+      $('enrollment-status'),
+      'This package is full. The 30 available seats have already been reserved.',
+      'error'
+    );
+    return;
+  }
   const f = $('enrollment-form'); if (f) f.reset();
   if ($('selected-plan-name')) $('selected-plan-name').textContent = plan.label;
   if ($('selected-plan-amount')) $('selected-plan-amount').textContent = plan.priceText;
@@ -317,13 +325,21 @@ function init() {
 
   loadAndRenderCourses((courses) => {
     for (const c of courses) {
+      const limit = Number(c.seatLimit || 0);
+      const remaining = Number(c.seatsRemaining ?? limit);
+      const seatMeta = limit
+        ? (c.isFull || remaining <= 0 ? 'Cohort full.' : remaining + ' of ' + limit + ' seats remain.')
+        : '';
       dynamicPlans.set(c.key, {
         key: c.key,
         label: c.label,
         priceText: c.priceText || ('$' + Number(c.amountUsd || 0).toLocaleString()),
-        meta: c.description || c.audienceText || '',
+        meta: [c.description || c.audienceText || '', seatMeta].filter(Boolean).join(' '),
         amountUsd: c.amountUsd,
-        checkoutDescription: c.checkoutDescription || ''
+        checkoutDescription: c.checkoutDescription || '',
+        seatLimit: limit,
+        seatsRemaining: remaining,
+        isFull: !!c.isFull
       });
     }
     bindEnrollButtons();
