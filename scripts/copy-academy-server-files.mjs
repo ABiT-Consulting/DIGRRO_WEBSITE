@@ -23,6 +23,10 @@ const rootHtaccessContent = `<IfModule mod_authz_core.c>
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule (^|/)academy-data(/|$) - [F,L]
+
+  RewriteCond %{HTTP_HOST} ^academy\\.digrro\\.com$ [NC]
+  RewriteCond %{REQUEST_URI} !^/academy(/|$) [NC]
+  RewriteRule ^(.*)$ academy/$1 [L]
 </IfModule>
 `;
 
