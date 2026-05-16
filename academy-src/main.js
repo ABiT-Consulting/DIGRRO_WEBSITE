@@ -108,6 +108,16 @@ function openEnrollment(planKey, trigger) {
     return;
   }
   const f = $('enrollment-form'); if (f) f.reset();
+  const reserveName = $('reserve-name');
+  const reserveEmail = $('reserve-email');
+  const reservePhone = $('reserve-phone');
+  if (reserveName && $('enrollment-name')) $('enrollment-name').value = reserveName.value.trim();
+  if (reserveEmail && $('enrollment-email')) {
+    const email = reserveEmail.value.trim().toLowerCase();
+    $('enrollment-email').value = email;
+    if ($('enrollment-email-confirm')) $('enrollment-email-confirm').value = email;
+  }
+  if (reservePhone && $('enrollment-phone')) $('enrollment-phone').value = reservePhone.value.trim();
   if ($('selected-plan-name')) $('selected-plan-name').textContent = plan.label;
   if ($('selected-plan-amount')) $('selected-plan-amount').textContent = plan.priceText;
   if ($('selected-plan-meta')) $('selected-plan-meta').textContent = plan.meta;
@@ -228,11 +238,12 @@ async function handleEnrollSubmit(event) {
   const addressLine = $('enrollment-address').value.trim();
   const country = $('enrollment-country').value.trim();
   const city = $('enrollment-city').value.trim();
+  const pincode = $('enrollment-pincode') ? $('enrollment-pincode').value.trim() : '';
   const company = $('enrollment-company').value.trim();
   const cref = ref();
 
   if (!plan) return setStatus(status, 'Please choose a valid training plan.', 'error');
-  if (!fullName || !email || !confirmEmail || !phoneNumber || !addressLine || !country || !city) {
+  if (!fullName || !email || !confirmEmail || !phoneNumber || !addressLine || !country || !city || !pincode) {
     return setStatus(status, 'Complete all required registration fields before checkout.', 'error');
   }
   if (email !== confirmEmail) return setStatus(status, 'Email and confirm email must match.', 'error');
@@ -248,7 +259,7 @@ async function handleEnrollSubmit(event) {
   const result = await postJson(api(REGISTER_API), {
     planKey: plan.key, checkoutReference: cref,
     fullName, email, confirmEmail, phoneNumber, password,
-    addressLine, country, city, company
+    addressLine, country, city, pincode, company
   });
 
   if (!result.ok) { setStatus(status, result.message || 'We could not complete your registration.', 'error'); submit.disabled = false; return; }
@@ -347,11 +358,9 @@ function init() {
 
   document.querySelectorAll('[data-open-login]').forEach((t) => {
     t.addEventListener('click', (e) => {
-      const target = $('login');
-      const hidden = !target || target.offsetParent === null;
-      const mobile = window.innerWidth < 980;
       if (t.hasAttribute('data-close-and-login')) { e.preventDefault(); closeEnroll(); openLogin(t); return; }
-      if (hidden || mobile || t.closest('.topbar')) { e.preventDefault(); openLogin(t); }
+      e.preventDefault();
+      openLogin(t);
     });
   });
 
