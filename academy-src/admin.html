@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Digrro Academy Trainer Portal</title>
+    <title>Digrro Academy Admin Portal</title>
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/png" sizes="64x64" href="../favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,7 +19,7 @@
       <div class="container topbar-inner">
         <a class="brand" href="./index.html">
           <img src="../image_fc91df1d-53b0-439b-9c3e-c444469fda79-removebg-preview%20copy%20copy%20copy.png" alt="Digrro" />
-          <span>Trainer Portal</span>
+          <span>Admin Portal</span>
         </a>
         <nav class="topbar-links">
           <a class="nav-link" href="./index.html">Public page</a>
@@ -29,25 +29,24 @@
     </header>
 
     <main>
-      <!-- ===== Login view ===== -->
       <section class="hero" id="admin-login-view">
         <div class="container" style="max-width: 460px; margin: 0 auto;">
           <div class="login-card">
-            <span class="eyebrow">Trainer login</span>
-            <h2 style="margin-top: 0.75rem;">Sign in to manage courses</h2>
-            <p>Use the trainer email and password configured in your .env file.</p>
+            <span class="eyebrow">Admin login</span>
+            <h2 style="margin-top: 0.75rem;">Sign in to manage the academy</h2>
+            <p>Use your admin username and password.</p>
 
             <form id="admin-login-form" class="field-stack" novalidate>
               <div class="field">
-                <label for="admin-email">Email</label>
-                <input id="admin-email" name="email" type="email" autocomplete="email" required />
+                <label for="admin-username">Username</label>
+                <input id="admin-username" name="username" type="text" autocomplete="username" required />
               </div>
               <div class="field">
                 <label for="admin-password">Password</label>
                 <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
               </div>
               <div class="form-status" id="admin-login-status" role="status" aria-live="polite">
-                Enter your trainer credentials to continue.
+                Enter your admin credentials to continue.
               </div>
               <button class="btn btn-primary btn-block" type="submit" id="admin-login-submit">Login</button>
             </form>
@@ -55,28 +54,66 @@
         </div>
       </section>
 
-      <!-- ===== Dashboard view ===== -->
       <section class="hero" id="admin-dashboard-view" hidden>
         <div class="container">
-          <div class="section-head" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+          <div class="section-head admin-head">
             <div>
-              <span class="section-kicker">Courses</span>
-              <h2 class="section-title" style="margin-top: 0.4rem;">Manage Academy courses</h2>
-              <p class="section-desc">Trainers can add courses, set pricing, and publish the class access link students receive after payment.</p>
+              <span class="section-kicker">Academy admin</span>
+              <h2 class="section-title" style="margin-top: 0.4rem;">Control courses, trainers, and students</h2>
+              <p class="section-desc">Create trainer accounts, update the live course package, and manage registered academy students.</p>
             </div>
-            <button class="btn btn-primary" type="button" id="admin-new-course">+ New course</button>
           </div>
 
-          <div class="form-status" id="admin-courses-status" role="status" aria-live="polite" style="margin-bottom: 1rem;">
-            Loading courses...
+          <div class="admin-tabs" role="tablist" aria-label="Admin sections">
+            <button class="admin-tab is-active" type="button" data-admin-tab="courses">Courses</button>
+            <button class="admin-tab" type="button" data-admin-tab="trainers">Trainers</button>
+            <button class="admin-tab" type="button" data-admin-tab="students">Students</button>
           </div>
 
-          <div id="admin-courses-list" class="grid-2"></div>
+          <section class="admin-panel is-active" id="admin-panel-courses" data-admin-panel="courses">
+            <div class="section-head admin-panel-head">
+              <div>
+                <span class="section-kicker">Courses</span>
+                <h3 class="section-title" style="margin-top: 0.4rem;">Manage academy courses</h3>
+                <p class="section-desc">Set pricing, seat language, trainer name, and the class access link students receive after payment.</p>
+              </div>
+              <button class="btn btn-primary" type="button" id="admin-new-course">New course</button>
+            </div>
+            <div class="form-status" id="admin-courses-status" role="status" aria-live="polite">Loading courses...</div>
+            <div id="admin-courses-list" class="grid-2 admin-list"></div>
+          </section>
+
+          <section class="admin-panel" id="admin-panel-trainers" data-admin-panel="trainers" hidden>
+            <div class="section-head admin-panel-head">
+              <div>
+                <span class="section-kicker">Trainers</span>
+                <h3 class="section-title" style="margin-top: 0.4rem;">Register trainers</h3>
+                <p class="section-desc">Create trainer records with login passwords and profile details.</p>
+              </div>
+              <button class="btn btn-primary" type="button" id="admin-new-trainer">New trainer</button>
+            </div>
+            <div class="form-status" id="admin-trainers-status" role="status" aria-live="polite">Loading trainers...</div>
+            <div id="admin-trainers-list" class="grid-2 admin-list"></div>
+          </section>
+
+          <section class="admin-panel" id="admin-panel-students" data-admin-panel="students" hidden>
+            <div class="section-head admin-panel-head">
+              <div>
+                <span class="section-kicker">Students</span>
+                <h3 class="section-title" style="margin-top: 0.4rem;">Manage students</h3>
+                <p class="section-desc">Add students, reset passwords, edit contact details, and review enrollment counts.</p>
+              </div>
+              <button class="btn btn-primary" type="button" id="admin-new-student">New student</button>
+            </div>
+            <div class="form-status" id="admin-students-status" role="status" aria-live="polite">Loading students...</div>
+            <div id="admin-students-list" class="grid-2 admin-list"></div>
+          </section>
         </div>
       </section>
     </main>
 
-    <!-- ===== Course editor modal ===== -->
+    <datalist id="trainer-options"></datalist>
+
     <div class="modal" id="course-modal" aria-hidden="true" inert>
       <div class="modal-backdrop"></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="course-modal-title">
@@ -86,7 +123,7 @@
             <h2 id="course-modal-title">New course</h2>
             <p>Set price, duration, and what learners get.</p>
           </div>
-          <button class="modal-close" type="button" id="course-modal-close" aria-label="Close">×</button>
+          <button class="modal-close" type="button" id="course-modal-close" aria-label="Close">x</button>
         </div>
 
         <form id="course-form" novalidate>
@@ -94,7 +131,7 @@
           <div class="form-grid" style="margin-top: 1rem;">
             <div class="field">
               <label for="course-plan-key">Plan key</label>
-              <input id="course-plan-key" type="text" autocomplete="off" placeholder="e.g. bootcamp" required />
+              <input id="course-plan-key" type="text" autocomplete="off" placeholder="e.g. sprint" required />
             </div>
             <div class="field">
               <label for="course-amount">Price (USD)</label>
@@ -106,19 +143,19 @@
             </div>
             <div class="field">
               <label for="course-duration">Duration</label>
-              <input id="course-duration" type="text" placeholder="e.g. 4 weeks" />
+              <input id="course-duration" type="text" placeholder="e.g. 12 hours" />
             </div>
             <div class="field">
-              <label for="course-audience">Format / audience</label>
-              <input id="course-audience" type="text" placeholder="e.g. 8 live sessions" />
+              <label for="course-audience">Format / seats</label>
+              <input id="course-audience" type="text" placeholder="e.g. 30 seats" />
             </div>
             <div class="field">
               <label for="course-teacher">Trainer name</label>
-              <input id="course-teacher" type="text" placeholder="e.g. Digrro Trainer" />
+              <input id="course-teacher" type="text" list="trainer-options" placeholder="e.g. Tarek Bacha" />
             </div>
             <div class="field">
-              <label for="course-badge">Badge (optional)</label>
-              <input id="course-badge" type="text" placeholder="e.g. Most chosen" />
+              <label for="course-badge">Badge</label>
+              <input id="course-badge" type="text" placeholder="e.g. Limited seats" />
             </div>
             <div class="field">
               <label for="course-display-order">Display order</label>
@@ -126,36 +163,154 @@
             </div>
             <div class="field full">
               <label for="course-description">Subtitle / description</label>
-              <input id="course-description" type="text" placeholder="Short caption shown under the price" />
+              <input id="course-description" type="text" />
             </div>
             <div class="field full">
               <label for="course-features">Features (one per line)</label>
-              <textarea id="course-features" rows="4" style="font-family: inherit; padding: 0.65rem 0.85rem; background: var(--surface-2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; resize: vertical;"></textarea>
+              <textarea id="course-features" rows="4"></textarea>
             </div>
             <div class="field full">
               <label for="course-checkout-description">Stripe checkout description</label>
-              <input id="course-checkout-description" type="text" placeholder="Shown on the Stripe checkout page" />
+              <input id="course-checkout-description" type="text" />
             </div>
             <div class="field full">
               <label for="course-learning-url">Class / materials URL</label>
-              <input id="course-learning-url" type="url" placeholder="Private Zoom, LMS, Google Classroom, or course materials link" />
+              <input id="course-learning-url" type="url" placeholder="Private Zoom, LMS, or materials link" />
             </div>
             <div class="field full">
-              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
-                <input id="course-is-active" type="checkbox" checked style="width: auto; margin: 0;" />
-                Active (visible on the public page)
+              <label class="checkline">
+                <input id="course-is-active" type="checkbox" checked />
+                Active on the public page
               </label>
             </div>
           </div>
 
-          <div class="form-status" id="course-form-status" role="status" aria-live="polite">
-            Fill in the course details and save.
-          </div>
+          <div class="form-status" id="course-form-status" role="status" aria-live="polite">Fill in the course details and save.</div>
 
           <div class="form-actions">
             <button class="btn btn-primary" type="submit" id="course-form-submit">Save course</button>
             <button class="btn btn-secondary" type="button" id="course-form-cancel">Cancel</button>
-            <button class="btn btn-ghost" type="button" id="course-form-delete" hidden style="color: #fca5a5; margin-left: auto;">Delete</button>
+            <button class="btn btn-ghost danger-action" type="button" id="course-form-delete" hidden>Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="trainer-modal" aria-hidden="true" inert>
+      <div class="modal-backdrop"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="trainer-modal-title">
+        <div class="modal-head">
+          <div>
+            <span class="section-kicker">Trainer</span>
+            <h2 id="trainer-modal-title">New trainer</h2>
+            <p>Register a trainer with their own password.</p>
+          </div>
+          <button class="modal-close" type="button" id="trainer-modal-close" aria-label="Close">x</button>
+        </div>
+
+        <form id="trainer-form" novalidate>
+          <input type="hidden" id="trainer-id" value="" />
+          <div class="form-grid" style="margin-top: 1rem;">
+            <div class="field full">
+              <label for="trainer-full-name">Full name</label>
+              <input id="trainer-full-name" type="text" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="trainer-email">Email</label>
+              <input id="trainer-email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="trainer-phone">Phone</label>
+              <input id="trainer-phone" type="tel" autocomplete="tel" />
+            </div>
+            <div class="field full">
+              <label for="trainer-password">Password</label>
+              <input id="trainer-password" type="password" autocomplete="new-password" placeholder="Required for new trainers" />
+            </div>
+            <div class="field full">
+              <label for="trainer-specialty">Specialty</label>
+              <input id="trainer-specialty" type="text" placeholder="AI video, content systems, campaign planning" />
+            </div>
+            <div class="field full">
+              <label for="trainer-bio">Notes</label>
+              <textarea id="trainer-bio" rows="4"></textarea>
+            </div>
+            <div class="field full">
+              <label class="checkline">
+                <input id="trainer-is-active" type="checkbox" checked />
+                Active trainer
+              </label>
+            </div>
+          </div>
+          <div class="form-status" id="trainer-form-status" role="status" aria-live="polite">Fill in the trainer details and save.</div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="trainer-form-submit">Save trainer</button>
+            <button class="btn btn-secondary" type="button" id="trainer-form-cancel">Cancel</button>
+            <button class="btn btn-ghost danger-action" type="button" id="trainer-form-delete" hidden>Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="student-modal" aria-hidden="true" inert>
+      <div class="modal-backdrop"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="student-modal-title">
+        <div class="modal-head">
+          <div>
+            <span class="section-kicker">Student</span>
+            <h2 id="student-modal-title">New student</h2>
+            <p>Add a student or update their access details.</p>
+          </div>
+          <button class="modal-close" type="button" id="student-modal-close" aria-label="Close">x</button>
+        </div>
+
+        <form id="student-form" novalidate>
+          <input type="hidden" id="student-id" value="" />
+          <div class="form-grid" style="margin-top: 1rem;">
+            <div class="field full">
+              <label for="student-full-name">Full name</label>
+              <input id="student-full-name" type="text" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="student-email">Email</label>
+              <input id="student-email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="student-phone">Phone</label>
+              <input id="student-phone" type="tel" autocomplete="tel" />
+            </div>
+            <div class="field full">
+              <label for="student-password">Password</label>
+              <input id="student-password" type="password" autocomplete="new-password" placeholder="Required for new students" />
+            </div>
+            <div class="field full">
+              <label for="student-address">Address</label>
+              <input id="student-address" type="text" autocomplete="street-address" />
+            </div>
+            <div class="field">
+              <label for="student-country">Country</label>
+              <input id="student-country" type="text" autocomplete="country-name" />
+            </div>
+            <div class="field">
+              <label for="student-city">City</label>
+              <input id="student-city" type="text" autocomplete="address-level2" />
+            </div>
+            <div class="field full">
+              <label for="student-company">Company</label>
+              <input id="student-company" type="text" autocomplete="organization" />
+            </div>
+            <div class="field full">
+              <label class="checkline">
+                <input id="student-email-confirmed" type="checkbox" checked />
+                Email confirmed
+              </label>
+            </div>
+          </div>
+          <div class="form-status" id="student-form-status" role="status" aria-live="polite">Fill in the student details and save.</div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="student-form-submit">Save student</button>
+            <button class="btn btn-secondary" type="button" id="student-form-cancel">Cancel</button>
+            <button class="btn btn-ghost danger-action" type="button" id="student-form-delete" hidden>Delete</button>
           </div>
         </form>
       </div>
@@ -163,7 +318,7 @@
 
     <footer class="footer">
       <div class="container footer-inner">
-        <div class="footer-copy">Copyright Digrro Academy Trainer Portal. Restricted area.</div>
+        <div class="footer-copy">Copyright Digrro Academy Admin Portal. Restricted area.</div>
         <a class="btn btn-ghost" href="./index.html">Back to public page</a>
       </div>
     </footer>

@@ -876,6 +876,138 @@ ul {
   gap: 0.6rem;
 }
 
+/* ---------- Admin portal ---------- */
+.admin-head {
+  max-width: none;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.55rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-tab:hover,
+.admin-tab.is-active {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.admin-panel {
+  margin-top: 1rem;
+}
+
+.admin-panel-head {
+  display: flex;
+  max-width: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-list {
+  margin-top: 1rem;
+}
+
+.admin-card {
+  border-radius: 0.5rem;
+}
+
+.admin-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-card p {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-card-tags,
+.admin-mini-tags,
+.admin-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.admin-card-tags {
+  justify-content: flex-end;
+}
+
+.admin-mini-tags {
+  margin-top: 0.85rem;
+}
+
+.admin-card-actions {
+  margin-top: 1rem;
+}
+
+.admin-price {
+  margin-top: 0.85rem;
+  color: var(--text);
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.admin-card-desc {
+  margin-top: 0.45rem;
+  color: var(--text-muted);
+}
+
+.admin-static-badge {
+  position: static;
+}
+
+.tag.is-good {
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.danger-action {
+  color: #fca5a5;
+}
+
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.checkline input {
+  width: auto;
+  margin: 0;
+}
+
 /* ---------- FAQ ---------- */
 .faq-grid {
   display: grid;

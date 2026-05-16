@@ -830,12 +830,29 @@ function academy_pdo(): PDO
     academy_ensure_table_column($pdo, 'academy_courses', 'teacher_name', 'TEXT');
     academy_ensure_table_column($pdo, 'academy_courses', 'learning_url', 'TEXT');
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS academy_trainers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            email_normalized TEXT NOT NULL UNIQUE,
+            phone_number TEXT,
+            password_hash TEXT NOT NULL,
+            specialty TEXT,
+            bio TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )'
+    );
+
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_courses_plan_key_idx ON academy_courses(plan_key)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_email_normalized_idx ON academy_accounts(email_normalized)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_password_reset_token_idx ON academy_accounts(password_reset_token)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_account_id_idx ON academy_enrollments(account_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_email_idx ON academy_enrollments(email)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_checkout_session_idx ON academy_enrollments(stripe_checkout_session_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_trainers_email_normalized_idx ON academy_trainers(email_normalized)');
 
     return $pdo;
 }
@@ -1268,20 +1285,45 @@ function academy_send_password_reset_email(array $recipient): void
     );
 }
 
+function academy_builtin_admin_username(): string
+{
+    return 'admin';
+}
+
+function academy_builtin_admin_password_hash(): string
+{
+    return '$2y$10$Uukl11f5e2F8wK29G5K5u.XMIun95Q9OwBesajYfEEEJl52e/6CYu';
+}
+
+function academy_builtin_admin_token_secret(): string
+{
+    return '84db6ecdcb648880b3e511292416f91c644f165ab479a8fd70926331098d0519';
+}
+
+function academy_normalize_admin_identity(string $value): string
+{
+    return strtolower(trim($value));
+}
+
+function academy_admin_identity_normalized(): string
+{
+    $value = academy_env(['ACADEMY_ADMIN_USERNAME', 'ACADEMY_ADMIN_EMAIL'], academy_builtin_admin_username());
+    return academy_normalize_admin_identity((string) $value);
+}
+
 function academy_admin_email_normalized(): ?string
 {
-    $value = academy_env(['ACADEMY_ADMIN_EMAIL']);
-    return is_string($value) && $value !== '' ? academy_normalize_email($value) : null;
+    return academy_admin_identity_normalized();
 }
 
 function academy_admin_password_hash(): ?string
 {
-    return academy_env(['ACADEMY_ADMIN_PASSWORD_HASH']);
+    return academy_env(['ACADEMY_ADMIN_PASSWORD_HASH'], academy_builtin_admin_password_hash());
 }
 
 function academy_admin_token_secret(): ?string
 {
-    return academy_env(['ACADEMY_ADMIN_TOKEN_SECRET']);
+    return academy_env(['ACADEMY_ADMIN_TOKEN_SECRET'], academy_builtin_admin_token_secret());
 }
 
 function academy_admin_token_ttl_seconds(): int
@@ -1295,7 +1337,7 @@ function academy_admin_token_ttl_seconds(): int
 
 function academy_admin_credentials_configured(): bool
 {
-    return academy_admin_email_normalized() !== null
+    return academy_admin_identity_normalized() !== ''
         && academy_admin_password_hash() !== null
         && academy_admin_token_secret() !== null;
 }
@@ -1315,14 +1357,14 @@ function academy_admin_base64url_decode(string $value): string
     return $decoded === false ? '' : $decoded;
 }
 
-function academy_admin_issue_token(string $email): string
+function academy_admin_issue_token(string $identity): string
 {
     $secret = academy_admin_token_secret();
     if (!is_string($secret) || $secret === '') {
         throw new RuntimeException('Admin token secret is not configured.');
     }
     $payload = [
-        'email' => $email,
+        'identity' => $identity,
         'role' => 'admin',
         'iat' => time(),
         'exp' => time() + academy_admin_token_ttl_seconds()
@@ -1504,12 +1546,12 @@ function academy_admin_require_authenticated(): array
 
 function academy_admin_check_credentials(string $email, string $password): bool
 {
-    $configuredEmail = academy_admin_email_normalized();
+    $configuredEmail = academy_admin_identity_normalized();
     $configuredHash = academy_admin_password_hash();
     if ($configuredEmail === null || $configuredHash === null) {
         return false;
     }
-    if (!hash_equals($configuredEmail, academy_normalize_email($email))) {
+    if (!hash_equals($configuredEmail, academy_normalize_admin_identity($email))) {
         return false;
     }
     return password_verify($password, $configuredHash);

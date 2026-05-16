@@ -29,6 +29,9 @@ const DEFAULT_COURSES = [
   }
 ];
 const ALLOWED_PLAN_KEYS = new Set(DEFAULT_COURSES.map((course) => course.key));
+const BUILTIN_ADMIN_USERNAME = 'admin';
+const BUILTIN_ADMIN_PASSWORD_HASH = 'scrypt:7681ce0d0a8de2ac93d62a4ef76def37:bb1b1f2d75955d9a95a89ac4b0f53592fa87c734ca36701c9e5959df9bdc3b30';
+const BUILTIN_ADMIN_TOKEN_SECRET = '84db6ecdcb648880b3e511292416f91c644f165ab479a8fd70926331098d0519';
 
 function b64u(buf) {
   return Buffer.from(buf).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -87,7 +90,7 @@ function makePlatformStorage(dataFile) {
   function ensure() {
     if (fs.existsSync(dataFile)) return;
     fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-    fs.writeFileSync(dataFile, JSON.stringify({ accounts: [], enrollments: [] }, null, 2));
+    fs.writeFileSync(dataFile, JSON.stringify({ accounts: [], enrollments: [], trainers: [] }, null, 2));
   }
   function read() {
     ensure();
@@ -95,16 +98,18 @@ function makePlatformStorage(dataFile) {
       const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
       return {
         accounts: Array.isArray(data.accounts) ? data.accounts : [],
-        enrollments: Array.isArray(data.enrollments) ? data.enrollments : []
+        enrollments: Array.isArray(data.enrollments) ? data.enrollments : [],
+        trainers: Array.isArray(data.trainers) ? data.trainers : []
       };
     } catch {
-      return { accounts: [], enrollments: [] };
+      return { accounts: [], enrollments: [], trainers: [] };
     }
   }
   function write(data) {
     fs.writeFileSync(dataFile, JSON.stringify({
       accounts: Array.isArray(data.accounts) ? data.accounts : [],
-      enrollments: Array.isArray(data.enrollments) ? data.enrollments : []
+      enrollments: Array.isArray(data.enrollments) ? data.enrollments : [],
+      trainers: Array.isArray(data.trainers) ? data.trainers : []
     }, null, 2));
   }
   function nextId(items) {
@@ -134,9 +139,9 @@ function verifyStoredPassword(password, hash) {
 }
 
 function makeAuth(env) {
-  function adminEmail() { return (env.ACADEMY_ADMIN_EMAIL || '').toLowerCase().trim(); }
-  function adminHash() { return env.ACADEMY_ADMIN_PASSWORD_HASH || ''; }
-  function tokenSecret() { return env.ACADEMY_ADMIN_TOKEN_SECRET || ''; }
+  function adminEmail() { return (env.ACADEMY_ADMIN_USERNAME || env.ACADEMY_ADMIN_EMAIL || BUILTIN_ADMIN_USERNAME).toLowerCase().trim(); }
+  function adminHash() { return env.ACADEMY_ADMIN_PASSWORD_HASH || BUILTIN_ADMIN_PASSWORD_HASH; }
+  function tokenSecret() { return env.ACADEMY_ADMIN_TOKEN_SECRET || BUILTIN_ADMIN_TOKEN_SECRET; }
   function ttl() { return parseInt(env.ACADEMY_ADMIN_TOKEN_TTL || '28800', 10) || 28800; }
   function configured() { return adminEmail() && adminHash() && tokenSecret(); }
 
@@ -147,7 +152,7 @@ function makeAuth(env) {
   function issueToken(email) {
     const secret = tokenSecret();
     if (!secret) throw new Error('ACADEMY_ADMIN_TOKEN_SECRET not set');
-    const payload = { email, role: 'admin', iat: nowSec(), exp: nowSec() + ttl() };
+    const payload = { identity: email, role: 'admin', iat: nowSec(), exp: nowSec() + ttl() };
     const enc = b64u(JSON.stringify(payload));
     const sig = b64u(crypto.createHmac('sha256', secret).update(enc).digest());
     return enc + '.' + sig;
@@ -570,6 +575,101 @@ function findValidResetAccount(data, token) {
   return account;
 }
 
+function trainerView(trainer) {
+  return {
+    id: Number(trainer.id),
+    fullName: trainer.fullName || '',
+    email: trainer.email || '',
+    phoneNumber: trainer.phoneNumber || '',
+    specialty: trainer.specialty || '',
+    bio: trainer.bio || '',
+    isActive: trainer.isActive !== false,
+    createdAt: trainer.createdAt || '',
+    updatedAt: trainer.updatedAt || ''
+  };
+}
+
+function validateTrainer(payload, isCreate) {
+  const errors = [];
+  const fullName = String(payload.fullName || '').trim();
+  const email = String(payload.email || '').toLowerCase().trim();
+  const password = String(payload.password || '');
+  if (!fullName) errors.push('Trainer name is required.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Enter a valid trainer email.');
+  if (isCreate && password.length < 8) errors.push('Trainer password must be at least 8 characters.');
+  if (!isCreate && password && password.length < 8) errors.push('Trainer password must be at least 8 characters.');
+  return {
+    errors,
+    data: {
+      fullName,
+      email,
+      emailNormalized: email,
+      phoneNumber: String(payload.phoneNumber || '').trim(),
+      password,
+      specialty: String(payload.specialty || '').trim(),
+      bio: String(payload.bio || '').trim(),
+      isActive: payload.isActive !== false && payload.isActive !== 'false'
+    }
+  };
+}
+
+function studentView(data, account) {
+  const enrollments = data.enrollments.filter((enrollment) => Number(enrollment.accountId) === Number(account.id));
+  const paidEnrollmentCount = enrollments.filter((enrollment) =>
+    enrollment.paymentStatus === 'paid' ||
+    enrollment.paymentStatus === 'no_payment_required' ||
+    enrollment.academicStatus === 'payment_received' ||
+    enrollment.paidAt
+  ).length;
+  const latest = enrollments
+    .map((enrollment) => enrollment.createdAt || '')
+    .filter(Boolean)
+    .sort()
+    .pop() || '';
+  return {
+    id: Number(account.id),
+    fullName: account.fullName || '',
+    email: account.email || '',
+    phoneNumber: account.phoneNumber || '',
+    addressLine: account.addressLine || '',
+    country: account.country || '',
+    city: account.city || '',
+    company: account.company || '',
+    emailConfirmed: account.emailConfirmed !== false,
+    enrollmentCount: enrollments.length,
+    paidEnrollmentCount,
+    latestEnrollmentAt: latest,
+    createdAt: account.createdAt || '',
+    updatedAt: account.updatedAt || ''
+  };
+}
+
+function validateStudent(payload, isCreate) {
+  const errors = [];
+  const fullName = String(payload.fullName || '').trim();
+  const email = String(payload.email || '').toLowerCase().trim();
+  const password = String(payload.password || '');
+  if (!fullName) errors.push('Student name is required.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Enter a valid student email.');
+  if (isCreate && password.length < 8) errors.push('Student password must be at least 8 characters.');
+  if (!isCreate && password && password.length < 8) errors.push('Student password must be at least 8 characters.');
+  return {
+    errors,
+    data: {
+      fullName,
+      email,
+      emailNormalized: email,
+      phoneNumber: String(payload.phoneNumber || '').trim(),
+      addressLine: String(payload.addressLine || '').trim(),
+      country: String(payload.country || '').trim(),
+      city: String(payload.city || '').trim(),
+      company: String(payload.company || '').trim(),
+      password,
+      emailConfirmed: payload.emailConfirmed !== false && payload.emailConfirmed !== 'false'
+    }
+  };
+}
+
 function normalizeApiPath(url) {
   if (url.startsWith('/academy/api/')) {
     return url.slice('/academy'.length);
@@ -620,15 +720,15 @@ export function academyApiPlugin(opts = {}) {
         if (!auth.configured()) {
           return send(res, 503, {
             ok: false,
-            message: 'Trainer portal is not configured. Run: npm run academy:hash YOUR_PASSWORD, then set ACADEMY_ADMIN_EMAIL / ACADEMY_ADMIN_PASSWORD_HASH / ACADEMY_ADMIN_TOKEN_SECRET in .env'
+            message: 'Admin credentials are not configured.'
           });
         }
         const body = await readBody(req);
-        const email = String(body.email || '').toLowerCase().trim();
+        const email = String(body.username || body.email || '').toLowerCase().trim();
         const password = String(body.password || '');
-        if (!email || !password) return send(res, 400, { ok: false, message: 'Email and password are required.' });
+        if (!email || !password) return send(res, 400, { ok: false, message: 'Username and password are required.' });
         if (email !== auth.adminEmail() || !auth.verifyPassword(password, auth.adminHash())) {
-          return send(res, 401, { ok: false, message: 'Email or password is incorrect.' });
+          return send(res, 401, { ok: false, message: 'Username or password is incorrect.' });
         }
         return send(res, 200, {
           ok: true,
@@ -690,6 +790,174 @@ export function academyApiPlugin(opts = {}) {
           store.writeAll(all);
           return send(res, 200, { ok: true, message: 'Course removed.' });
         }
+        return send(res, 405, { ok: false, message: 'Method not allowed.' });
+      }
+
+      // Admin trainers CRUD (token-protected)
+      if (url === '/api/admin-trainers' || url === '/api/admin-trainers.php') {
+        const tokenPayload = auth.verifyToken(getBearer(req));
+        if (!tokenPayload) return send(res, 401, { ok: false, message: 'Admin authentication required.' });
+
+        const u = new URL('http://x' + req.url);
+        const idStr = u.searchParams.get('id');
+        const id = idStr && /^\d+$/.test(idStr) ? parseInt(idStr, 10) : null;
+
+        if (req.method === 'GET') {
+          const data = platform.read();
+          return send(res, 200, { ok: true, trainers: data.trainers.map(trainerView) });
+        }
+
+        if (req.method === 'POST') {
+          const body = await readBody(req);
+          const v = validateTrainer(body, true);
+          if (v.errors.length) return send(res, 400, { ok: false, message: v.errors.join(' ') });
+          const data = platform.read();
+          if (data.trainers.find((trainer) => trainer.emailNormalized === v.data.emailNormalized)) {
+            return send(res, 409, { ok: false, message: 'A trainer with that email already exists.' });
+          }
+          const now = new Date().toISOString();
+          const created = {
+            id: platform.nextId(data.trainers),
+            fullName: v.data.fullName,
+            email: v.data.email,
+            emailNormalized: v.data.emailNormalized,
+            phoneNumber: v.data.phoneNumber,
+            passwordHash: hashPassword(v.data.password),
+            specialty: v.data.specialty,
+            bio: v.data.bio,
+            isActive: v.data.isActive,
+            createdAt: now,
+            updatedAt: now
+          };
+          data.trainers.push(created);
+          platform.write(data);
+          return send(res, 201, { ok: true, trainer: trainerView(created) });
+        }
+
+        if (req.method === 'PUT' || req.method === 'PATCH') {
+          if (!id) return send(res, 400, { ok: false, message: 'Trainer id is required.' });
+          const body = await readBody(req);
+          const v = validateTrainer(body, false);
+          if (v.errors.length) return send(res, 400, { ok: false, message: v.errors.join(' ') });
+          const data = platform.read();
+          const trainer = data.trainers.find((item) => Number(item.id) === id);
+          if (!trainer) return send(res, 404, { ok: false, message: 'Trainer not found.' });
+          if (data.trainers.find((item) => item.emailNormalized === v.data.emailNormalized && Number(item.id) !== id)) {
+            return send(res, 409, { ok: false, message: 'A trainer with that email already exists.' });
+          }
+          trainer.fullName = v.data.fullName;
+          trainer.email = v.data.email;
+          trainer.emailNormalized = v.data.emailNormalized;
+          trainer.phoneNumber = v.data.phoneNumber;
+          if (v.data.password) trainer.passwordHash = hashPassword(v.data.password);
+          trainer.specialty = v.data.specialty;
+          trainer.bio = v.data.bio;
+          trainer.isActive = v.data.isActive;
+          trainer.updatedAt = new Date().toISOString();
+          platform.write(data);
+          return send(res, 200, { ok: true, trainer: trainerView(trainer) });
+        }
+
+        if (req.method === 'DELETE') {
+          if (!id) return send(res, 400, { ok: false, message: 'Trainer id is required.' });
+          const data = platform.read();
+          const index = data.trainers.findIndex((trainer) => Number(trainer.id) === id);
+          if (index === -1) return send(res, 404, { ok: false, message: 'Trainer not found.' });
+          data.trainers.splice(index, 1);
+          platform.write(data);
+          return send(res, 200, { ok: true, message: 'Trainer removed.' });
+        }
+
+        return send(res, 405, { ok: false, message: 'Method not allowed.' });
+      }
+
+      // Admin students CRUD (token-protected)
+      if (url === '/api/admin-students' || url === '/api/admin-students.php') {
+        const tokenPayload = auth.verifyToken(getBearer(req));
+        if (!tokenPayload) return send(res, 401, { ok: false, message: 'Admin authentication required.' });
+
+        const u = new URL('http://x' + req.url);
+        const idStr = u.searchParams.get('id');
+        const id = idStr && /^\d+$/.test(idStr) ? parseInt(idStr, 10) : null;
+
+        if (req.method === 'GET') {
+          const data = platform.read();
+          return send(res, 200, { ok: true, students: data.accounts.map((account) => studentView(data, account)) });
+        }
+
+        if (req.method === 'POST') {
+          const body = await readBody(req);
+          const v = validateStudent(body, true);
+          if (v.errors.length) return send(res, 400, { ok: false, message: v.errors.join(' ') });
+          const data = platform.read();
+          if (data.accounts.find((account) => account.emailNormalized === v.data.emailNormalized)) {
+            return send(res, 409, { ok: false, message: 'A student with that email already exists.' });
+          }
+          const now = new Date().toISOString();
+          const created = {
+            id: platform.nextId(data.accounts),
+            email: v.data.email,
+            emailNormalized: v.data.emailNormalized,
+            fullName: v.data.fullName,
+            phoneNumber: v.data.phoneNumber,
+            addressLine: v.data.addressLine,
+            country: v.data.country,
+            city: v.data.city,
+            company: v.data.company,
+            passwordHash: hashPassword(v.data.password),
+            emailConfirmed: v.data.emailConfirmed,
+            createdAt: now,
+            updatedAt: now
+          };
+          data.accounts.push(created);
+          platform.write(data);
+          return send(res, 201, { ok: true, student: studentView(data, created) });
+        }
+
+        if (req.method === 'PUT' || req.method === 'PATCH') {
+          if (!id) return send(res, 400, { ok: false, message: 'Student id is required.' });
+          const body = await readBody(req);
+          const v = validateStudent(body, false);
+          if (v.errors.length) return send(res, 400, { ok: false, message: v.errors.join(' ') });
+          const data = platform.read();
+          const account = data.accounts.find((item) => Number(item.id) === id);
+          if (!account) return send(res, 404, { ok: false, message: 'Student not found.' });
+          if (data.accounts.find((item) => item.emailNormalized === v.data.emailNormalized && Number(item.id) !== id)) {
+            return send(res, 409, { ok: false, message: 'A student with that email already exists.' });
+          }
+          account.email = v.data.email;
+          account.emailNormalized = v.data.emailNormalized;
+          account.fullName = v.data.fullName;
+          account.phoneNumber = v.data.phoneNumber;
+          account.addressLine = v.data.addressLine;
+          account.country = v.data.country;
+          account.city = v.data.city;
+          account.company = v.data.company;
+          account.emailConfirmed = v.data.emailConfirmed;
+          if (v.data.password) account.passwordHash = hashPassword(v.data.password);
+          account.updatedAt = new Date().toISOString();
+          data.enrollments
+            .filter((enrollment) => Number(enrollment.accountId) === id)
+            .forEach((enrollment) => {
+              enrollment.email = v.data.email;
+              enrollment.fullName = v.data.fullName;
+              enrollment.phoneNumber = v.data.phoneNumber;
+            });
+          platform.write(data);
+          return send(res, 200, { ok: true, student: studentView(data, account) });
+        }
+
+        if (req.method === 'DELETE') {
+          if (!id) return send(res, 400, { ok: false, message: 'Student id is required.' });
+          const data = platform.read();
+          const index = data.accounts.findIndex((account) => Number(account.id) === id);
+          if (index === -1) return send(res, 404, { ok: false, message: 'Student not found.' });
+          data.accounts.splice(index, 1);
+          data.enrollments = data.enrollments.filter((enrollment) => Number(enrollment.accountId) !== id);
+          platform.write(data);
+          return send(res, 200, { ok: true, message: 'Student removed.' });
+        }
+
         return send(res, 405, { ok: false, message: 'Method not allowed.' });
       }
 
