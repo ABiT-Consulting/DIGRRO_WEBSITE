@@ -30,7 +30,8 @@ foreach ($plans as $plan) {
         'badge' => $plan['badge'] ?? '',
         'description' => $plan['description'] ?? '',
         'features' => $plan['features'] ?? [],
-        'displayOrder' => $plan['displayOrder'] ?? 0
+        'displayOrder' => $plan['displayOrder'] ?? 0,
+        'seatLimit' => (int) ($plan['seatLimit'] ?? 0)
     ];
 }
 

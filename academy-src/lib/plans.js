@@ -1,35 +1,12 @@
 export const plans = {
-  test: {
-    key: 'test',
-    label: 'Academy Login Test',
-    amountUsd: 10,
-    priceText: '$10',
-    meta: 'Low-cost test checkout for verifying registration and student login',
-    checkoutDescription: 'Digrro Academy test checkout for confirming registration, Stripe payment, and student login access.'
-  },
   sprint: {
     key: 'sprint',
-    label: 'AI Marketing Sprint',
+    label: 'Digrro Academy Package',
     amountUsd: 200,
     priceText: '$200',
-    meta: 'Per seat public cohort or $1,750 for a private team workshop',
-    checkoutDescription: 'Live AI marketing workshop for campaign planning, copy, and content workflow acceleration.'
-  },
-  bootcamp: {
-    key: 'bootcamp',
-    label: 'AI Content and Video Bootcamp',
-    amountUsd: 650,
-    priceText: '$650',
-    meta: 'Early-bird per seat, $850 standard price',
-    checkoutDescription: 'Four-week bootcamp for AI content systems, short-form video, and execution workflows.'
-  },
-  corporate: {
-    key: 'corporate',
-    label: 'Corporate Academy Program',
-    amountUsd: 4800,
-    priceText: 'From $4,800',
-    meta: 'For teams up to 15 participants, with premium custom option at $7,500',
-    checkoutDescription: 'Private corporate AI training program with customized delivery, templates, and team enablement.'
+    meta: 'One package. 30 seats total.',
+    checkoutDescription: 'Digrro Academy live AI training package with a 30-seat limit.',
+    seatLimit: 30
   }
 };
 

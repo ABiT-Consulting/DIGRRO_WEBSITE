@@ -26,7 +26,7 @@ function renderCourseCard(course, isFeatured) {
   if (course.teacherName) flags.push('<span class="plan-flag">' + escapeHtml(course.teacherName) + '</span>');
 
   const ctaClass = isFeatured ? 'btn btn-primary btn-block' : 'btn btn-secondary btn-block';
-  const ctaLabel = course.key === 'corporate' ? 'Request proposal' : 'Enroll with Stripe';
+  const ctaLabel = 'Enroll with Stripe';
 
   wrap.innerHTML =
     (course.badge ? '<span class="plan-badge">' + escapeHtml(course.badge) + '</span>' : '') +
@@ -59,11 +59,10 @@ export async function loadAndRenderCourses(onAfterRender) {
     const courses = data.courses.slice().sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     if (!courses.length) return;
 
-    // Pick a featured plan: explicit badge wins, else the bootcamp key, else the middle one.
+    // Pick a featured plan: explicit badge wins, else the middle one.
     let featuredKey = null;
     const withBadge = courses.find((c) => c.badge && c.badge.trim() !== '');
     if (withBadge) featuredKey = withBadge.key;
-    else if (courses.find((c) => c.key === 'bootcamp')) featuredKey = 'bootcamp';
     else if (courses.length >= 2) featuredKey = courses[Math.floor(courses.length / 2)].key;
 
     grid.innerHTML = '';

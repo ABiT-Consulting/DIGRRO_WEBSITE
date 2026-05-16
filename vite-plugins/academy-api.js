@@ -8,82 +8,27 @@ import Stripe from 'stripe';
 
 const DEFAULT_COURSES = [
   {
-    key: 'test',
-    label: 'Academy Login Test',
-    amountUsd: 10,
-    durationText: 'Login test',
-    audienceText: 'Stripe checkout',
-    badge: 'Test plan',
-    description: 'Use this to verify registration, payment, and student login.',
-    features: [
-      'Create a student account with email and password',
-      'Complete a low-cost Stripe checkout',
-      'Log in and confirm dashboard access'
-    ],
-    checkoutDescription: 'Digrro Academy test checkout for confirming registration, Stripe payment, and student login access.',
-    teacherName: 'Digrro Trainer',
-    learningUrl: '',
-    displayOrder: 0,
-    isActive: true
-  },
-  {
     key: 'sprint',
-    label: 'AI Marketing Sprint',
+    label: 'Digrro Academy Package',
     amountUsd: 200,
-    durationText: '4 hours',
-    audienceText: 'Live workshop',
-    badge: '',
-    description: 'Per seat or $1,750 private team',
+    durationText: 'Live training',
+    audienceText: '30 seats',
+    badge: 'Limited seats',
+    description: 'One package. 30 seats total.',
     features: [
       'AI prompting for campaigns and content',
       'Hooks, offers and content planning',
       'Quick-start prompt pack'
     ],
-    checkoutDescription: 'Live AI marketing workshop for campaign planning, copy, and content workflow acceleration.',
+    checkoutDescription: 'Digrro Academy live AI training package with a 30-seat limit.',
     teacherName: 'Digrro Trainer',
     learningUrl: '',
-    displayOrder: 1,
-    isActive: true
-  },
-  {
-    key: 'bootcamp',
-    label: 'AI Content and Video Bootcamp',
-    amountUsd: 650,
-    durationText: '4 weeks',
-    audienceText: '8 live sessions',
-    badge: 'Most chosen',
-    description: 'Early bird, $850 standard',
-    features: [
-      'Content systems and operations',
-      'AI scripting, editing, captions, repurposing',
-      'Capstone and certificate pathway'
-    ],
-    checkoutDescription: 'Four-week bootcamp for AI content systems, short-form video, and execution workflows.',
-    teacherName: 'Digrro Trainer',
-    learningUrl: '',
-    displayOrder: 2,
-    isActive: true
-  },
-  {
-    key: 'corporate',
-    label: 'Corporate Academy',
-    amountUsd: 4800,
-    durationText: 'Private',
-    audienceText: 'Custom agenda',
-    badge: '',
-    description: 'Up to 15 seats, custom from $7,500',
-    features: [
-      'Discovery and role-based design',
-      'Private sessions and SOP handoff',
-      'Management rollout support'
-    ],
-    checkoutDescription: 'Private corporate AI training program with customized delivery, templates, and team enablement.',
-    teacherName: 'Digrro Trainer',
-    learningUrl: '',
-    displayOrder: 3,
+    displayOrder: 0,
+    seatLimit: 30,
     isActive: true
   }
 ];
+const ALLOWED_PLAN_KEYS = new Set(DEFAULT_COURSES.map((course) => course.key));
 
 function b64u(buf) {
   return Buffer.from(buf).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -108,19 +53,15 @@ function makeStorage(dataFile) {
       }
     }
 
-    const existingKeys = new Set(courses.map((course) => course && course.key).filter(Boolean));
-    let changed = courses.length === 0;
-    for (const course of courses) {
-      if (course && course.teacherName === 'Digrro Faculty') {
-        course.teacherName = 'Digrro Trainer';
-        changed = true;
-      }
-    }
-    for (const course of DEFAULT_COURSES) {
-      if (existingKeys.has(course.key)) continue;
-      courses.push({ id: nextId(courses), ...course });
-      changed = true;
-    }
+    const existingByKey = new Map(courses.map((course) => [course && course.key, course]).filter(([key]) => Boolean(key)));
+    let nextCourseId = courses.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0) + 1;
+    const normalizedCourses = DEFAULT_COURSES.map((course) => {
+      const existing = existingByKey.get(course.key);
+      const id = Number(existing?.id) || nextCourseId++;
+      return { id, ...course };
+    });
+    const changed = JSON.stringify(courses) !== JSON.stringify(normalizedCourses);
+    courses = normalizedCourses;
 
     if (changed) {
       fs.writeFileSync(dataFile, JSON.stringify(courses, null, 2));
@@ -302,6 +243,14 @@ function getBearer(req) {
 
 function priceText(amount) {
   return '$' + Number(amount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function seatLimit(course) {
+  return Math.max(0, Number(course?.seatLimit || 0));
+}
+
+function enrollmentCountForPlan(data, planKey) {
+  return data.enrollments.filter((enrollment) => enrollment.planKey === planKey).length;
 }
 
 function trimTrailingSlash(value) {
@@ -516,7 +465,8 @@ function publicView(course) {
     badge: course.badge || '',
     description: course.description || '',
     features: Array.isArray(course.features) ? course.features : [],
-    displayOrder: Number(course.displayOrder || 0)
+    displayOrder: Number(course.displayOrder || 0),
+    seatLimit: seatLimit(course)
   };
 }
 
@@ -651,7 +601,7 @@ export function academyApiPlugin(opts = {}) {
       if (url === '/api/courses' || url === '/api/courses.php') {
         if (req.method !== 'GET') return send(res, 405, { ok: false, message: 'Method not allowed.' });
         const list = store.readAll()
-          .filter((c) => c.isActive)
+          .filter((c) => c.isActive && ALLOWED_PLAN_KEYS.has(c.key))
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
           .map(publicView);
         return send(res, 200, { ok: true, courses: list });
@@ -742,7 +692,7 @@ export function academyApiPlugin(opts = {}) {
         const body = await readBody(req);
         const planKey = String(body.planKey || '').trim().toLowerCase();
         const courses = store.readAll();
-        const plan = courses.find((c) => c.key === planKey && c.isActive);
+        const plan = courses.find((c) => c.key === planKey && c.isActive && ALLOWED_PLAN_KEYS.has(c.key));
         if (!plan) return send(res, 400, { ok: false, message: 'Please choose a valid academy plan.' });
 
         const fullName = String(body.fullName || '').trim();
@@ -757,6 +707,11 @@ export function academyApiPlugin(opts = {}) {
         if (email !== confirmEmail) return send(res, 400, { ok: false, message: 'Email and confirm email must match.' });
 
         const data = platform.read();
+        const limit = seatLimit(plan);
+        if (limit > 0 && enrollmentCountForPlan(data, plan.key) >= limit) {
+          return send(res, 409, { ok: false, message: 'This package is full. The 30 available seats have already been reserved.' });
+        }
+
         let account = data.accounts.find((a) => a.emailNormalized === email);
         if (account && !verifyStoredPassword(password, account.passwordHash)) {
           return send(res, 409, { ok: false, message: 'This email is already registered. Use the correct password to continue.' });

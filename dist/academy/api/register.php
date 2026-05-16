@@ -86,6 +86,15 @@ try {
     $pdo = academy_pdo();
     $pdo->beginTransaction();
 
+    $seatLimit = academy_plan_seat_limit($plan);
+    if ($seatLimit > 0 && academy_enrollment_count_for_plan($pdo, (string) $plan['key']) >= $seatLimit) {
+        $pdo->rollBack();
+        academy_json_response(409, [
+            'ok' => false,
+            'message' => 'This package is full. The 30 available seats have already been reserved.'
+        ]);
+    }
+
     $account = academy_find_account($pdo, $email);
     $shouldSendConfirmation = false;
     $confirmationToken = null;

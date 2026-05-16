@@ -537,33 +537,15 @@ function academy_retrieve_checkout_session(string $sessionId): array
 function academy_default_plans(): array
 {
     return [
-        'test' => [
-            'key' => 'test',
-            'label' => 'Academy Login Test',
-            'amountUsd' => 10,
-            'checkoutDescription' => 'Digrro Academy test checkout for confirming registration, Stripe payment, and student login access.',
-            'durationText' => 'Login test',
-            'audienceText' => 'Stripe checkout',
-            'badge' => 'Test plan',
-            'description' => 'Use this to verify registration, payment, and student login.',
-            'features' => [
-                'Create a student account with email and password',
-                'Complete a low-cost Stripe checkout',
-                'Log in and confirm dashboard access'
-            ],
-            'teacherName' => 'Digrro Trainer',
-            'learningUrl' => '',
-            'displayOrder' => 0
-        ],
         'sprint' => [
             'key' => 'sprint',
-            'label' => 'AI Marketing Sprint',
+            'label' => 'Digrro Academy Package',
             'amountUsd' => 200,
-            'checkoutDescription' => 'Live AI marketing workshop for campaign planning, copy, and content workflow acceleration.',
-            'durationText' => '4 hours',
-            'audienceText' => 'Live workshop',
-            'badge' => '',
-            'description' => 'Per seat or $1,750 private team',
+            'checkoutDescription' => 'Digrro Academy live AI training package with a 30-seat limit.',
+            'durationText' => 'Live training',
+            'audienceText' => '30 seats',
+            'badge' => 'Limited seats',
+            'description' => 'One package. 30 seats total.',
             'features' => [
                 'AI prompting for campaigns and content',
                 'Hooks, offers and content planning',
@@ -571,43 +553,8 @@ function academy_default_plans(): array
             ],
             'teacherName' => 'Digrro Trainer',
             'learningUrl' => '',
-            'displayOrder' => 1
-        ],
-        'bootcamp' => [
-            'key' => 'bootcamp',
-            'label' => 'AI Content and Video Bootcamp',
-            'amountUsd' => 650,
-            'checkoutDescription' => 'Four-week bootcamp for AI content systems, short-form video, and execution workflows.',
-            'durationText' => '4 weeks',
-            'audienceText' => '8 live sessions',
-            'badge' => 'Most chosen',
-            'description' => 'Early bird, $850 standard',
-            'features' => [
-                'Content systems and operations',
-                'AI scripting, editing, captions, repurposing',
-                'Capstone and certificate pathway'
-            ],
-            'teacherName' => 'Digrro Trainer',
-            'learningUrl' => '',
-            'displayOrder' => 2
-        ],
-        'corporate' => [
-            'key' => 'corporate',
-            'label' => 'Corporate Academy Program',
-            'amountUsd' => 4800,
-            'checkoutDescription' => 'Private corporate AI training program with customized delivery, templates, and team enablement.',
-            'durationText' => 'Private',
-            'audienceText' => 'Custom agenda',
-            'badge' => '',
-            'description' => 'Up to 15 seats, custom from $7,500',
-            'features' => [
-                'Discovery and role-based design',
-                'Private sessions and SOP handoff',
-                'Management rollout support'
-            ],
-            'teacherName' => 'Digrro Trainer',
-            'learningUrl' => '',
-            'displayOrder' => 3
+            'displayOrder' => 0,
+            'seatLimit' => 30
         ]
     ];
 }
@@ -616,7 +563,15 @@ function academy_courses_seed_if_empty(PDO $pdo): void
 {
     $pdo->exec("UPDATE academy_courses SET teacher_name = 'Digrro Trainer' WHERE teacher_name = 'Digrro Faculty'");
 
-    $existingRows = $pdo->query('SELECT plan_key FROM academy_courses')->fetchAll();
+    $defaultPlans = academy_default_plans();
+    $activePlanKeys = array_keys($defaultPlans);
+    if ($activePlanKeys !== []) {
+        $placeholders = implode(',', array_fill(0, count($activePlanKeys), '?'));
+        $deactivate = $pdo->prepare('UPDATE academy_courses SET is_active = 0 WHERE plan_key NOT IN (' . $placeholders . ')');
+        $deactivate->execute($activePlanKeys);
+    }
+
+    $existingRows = $pdo->query('SELECT id, plan_key FROM academy_courses')->fetchAll();
     $existingKeys = [];
     foreach ($existingRows as $row) {
         $existingKeys[(string) ($row['plan_key'] ?? '')] = true;
@@ -626,12 +581,25 @@ function academy_courses_seed_if_empty(PDO $pdo): void
         'INSERT INTO academy_courses (plan_key, label, amount_usd, duration_text, audience_text, badge, description, features_json, checkout_description, teacher_name, learning_url, display_order, is_active)
          VALUES (:plan_key, :label, :amount_usd, :duration_text, :audience_text, :badge, :description, :features_json, :checkout_description, :teacher_name, :learning_url, :display_order, 1)'
     );
-    foreach (academy_default_plans() as $plan) {
-        if (isset($existingKeys[$plan['key']])) {
-            continue;
-        }
-
-        $insert->execute([
+    $update = $pdo->prepare(
+        'UPDATE academy_courses
+         SET label = :label,
+             amount_usd = :amount_usd,
+             duration_text = :duration_text,
+             audience_text = :audience_text,
+             badge = :badge,
+             description = :description,
+             features_json = :features_json,
+             checkout_description = :checkout_description,
+             teacher_name = :teacher_name,
+             learning_url = :learning_url,
+             display_order = :display_order,
+             is_active = 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE plan_key = :plan_key'
+    );
+    foreach ($defaultPlans as $plan) {
+        $params = [
             'plan_key' => $plan['key'],
             'label' => $plan['label'],
             'amount_usd' => $plan['amountUsd'],
@@ -644,7 +612,14 @@ function academy_courses_seed_if_empty(PDO $pdo): void
             'teacher_name' => $plan['teacherName'] ?? 'Digrro Trainer',
             'learning_url' => $plan['learningUrl'] ?? '',
             'display_order' => $plan['displayOrder'] ?? 0
-        ]);
+        ];
+
+        if (isset($existingKeys[$plan['key']])) {
+            $update->execute($params);
+            continue;
+        }
+
+        $insert->execute($params);
     }
 }
 
@@ -655,6 +630,7 @@ function academy_course_row_to_plan(array $row): array
         $features = [];
     }
     $key = (string) $row['plan_key'];
+    $defaultPlan = academy_default_plans()[$key] ?? [];
     return [
         'id' => (int) ($row['id'] ?? 0),
         'key' => $key,
@@ -670,6 +646,7 @@ function academy_course_row_to_plan(array $row): array
         'learningUrl' => (string) ($row['learning_url'] ?? ''),
         'displayOrder' => (int) ($row['display_order'] ?? 0),
         'isActive' => (int) ($row['is_active'] ?? 1) === 1,
+        'seatLimit' => (int) ($defaultPlan['seatLimit'] ?? 0),
         'checkoutUrl' => academy_checkout_url_for_plan($key)
     ];
 }
@@ -870,6 +847,18 @@ function academy_find_account(PDO $pdo, string $normalizedEmail): ?array
     $account = $statement->fetch();
 
     return is_array($account) ? $account : null;
+}
+
+function academy_plan_seat_limit(array $plan): int
+{
+    return max(0, (int) ($plan['seatLimit'] ?? 0));
+}
+
+function academy_enrollment_count_for_plan(PDO $pdo, string $planKey): int
+{
+    $statement = $pdo->prepare('SELECT COUNT(*) FROM academy_enrollments WHERE plan_key = :plan_key');
+    $statement->execute(['plan_key' => $planKey]);
+    return (int) $statement->fetchColumn();
 }
 
 function academy_record_checkout_session(PDO $pdo, string $checkoutReference, array $session): void
