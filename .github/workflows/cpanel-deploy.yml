@@ -499,6 +499,17 @@ jobs:
             done
           }
 
+          should_publish_main_site_assets() {
+            local changed_files
+            changed_files="$(git diff-tree --no-commit-id --name-only -r "${GITHUB_SHA}" 2>/dev/null || true)"
+
+            if [[ -z "${changed_files}" ]]; then
+              return 1
+            fi
+
+            echo "${changed_files}" | grep -Eq '^(dist/(index\.html|assets/|videos/)|index\.html|src/|public/|package(-lock)?\.json|vite\.config\.)'
+          }
+
           cleanup_runtime_files() {
             local account_home="/home/${CPANEL_USER}"
             local cleanup_resp
@@ -561,11 +572,15 @@ jobs:
           }
 
           direct_publish_academy_runtime_env
-          direct_publish_main_site_assets
           direct_publish_academy_assets
+          if should_publish_main_site_assets; then
+            direct_publish_main_site_assets
+          else
+            echo "Skipping main-site asset publish because this commit only changes academy files."
+          fi
           cleanup_runtime_files
 
-          echo "Main site, academy assets, and academy runtime env were direct-published through cPanel Fileman. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
+          echo "Academy assets and runtime env were direct-published through cPanel Fileman. Main-site assets were only published when changed. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
           exit 0
 
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
