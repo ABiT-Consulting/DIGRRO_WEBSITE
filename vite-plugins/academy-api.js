@@ -9,19 +9,19 @@ import Stripe from 'stripe';
 const DEFAULT_COURSES = [
   {
     key: 'sprint',
-    label: 'Digrro Academy Package',
+    label: 'AI Content Creation & Media Production Training',
     amountUsd: 200,
-    durationText: 'Live training',
+    durationText: '12 hours',
     audienceText: '30 seats',
     badge: 'Limited seats',
-    description: 'One package. 30 seats total.',
+    description: 'From Prompt to Production: hands-on AI content and media creation.',
     features: [
-      'AI prompting for campaigns and content',
-      'Hooks, offers and content planning',
-      'Quick-start prompt pack'
+      'Build prompt libraries, campaign images, scripts, storyboards, and short-form video assets',
+      'Create brand-ready image, video, and voice outputs with Arabic and English workflows',
+      'Leave with templates, QA rubrics, governance checklists, and a 30-day action plan'
     ],
-    checkoutDescription: 'Digrro Academy live AI training package with a 30-seat limit.',
-    teacherName: 'Digrro Trainer',
+    checkoutDescription: 'From Prompt to Production: a 12-hour AI content creation and media production bootcamp with hands-on image, video, voice, and campaign deliverables.',
+    teacherName: 'Tarek Bacha',
     learningUrl: '',
     displayOrder: 0,
     seatLimit: 30,
