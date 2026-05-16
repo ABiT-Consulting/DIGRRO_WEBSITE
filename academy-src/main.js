@@ -1,7 +1,7 @@
 import './styles.css';
 import { getPlan } from './lib/plans.js';
 import { getStripeCheckoutLabel } from './lib/stripe-links.js';
-import { loadAndRenderCourses } from './lib/courses.js';
+import { loadCourses } from './lib/courses.js';
 
 const REGISTER_API = './api/register.php';
 const LOGIN_API = './api/login.php';
@@ -168,8 +168,8 @@ function renderStudentDashboard(dashboard) {
     coursesNode.innerHTML =
       '<article class="portal-course">' +
         '<h3>No courses yet</h3>' +
-        '<p>Choose a course below, create your account, and complete Stripe checkout to unlock class access.</p>' +
-        '<a class="btn btn-primary" href="#programs">View courses</a>' +
+        '<p>Reserve your seat, create your account, and complete Stripe checkout to unlock class access.</p>' +
+        '<a class="btn btn-primary" href="#login">Reserve a seat</a>' +
       '</article>';
     return;
   }
@@ -184,7 +184,7 @@ function renderStudentDashboard(dashboard) {
         : '<button class="btn btn-secondary" type="button" disabled>Class link coming soon</button>')
       : (enrollment.checkoutUrl
         ? '<a class="btn btn-primary" href="' + escapeHtml(enrollment.checkoutUrl) + '">Complete Stripe payment</a>'
-        : '<a class="btn btn-secondary" href="#programs">Enroll again</a>');
+        : '<a class="btn btn-secondary" href="#login">Reserve again</a>');
 
     return '<article class="portal-course">' +
       '<div class="portal-course-head">' +
@@ -238,12 +238,11 @@ async function handleEnrollSubmit(event) {
   const addressLine = $('enrollment-address').value.trim();
   const country = $('enrollment-country').value.trim();
   const city = $('enrollment-city').value.trim();
-  const pincode = $('enrollment-pincode') ? $('enrollment-pincode').value.trim() : '';
   const company = $('enrollment-company').value.trim();
   const cref = ref();
 
   if (!plan) return setStatus(status, 'Please choose a valid training plan.', 'error');
-  if (!fullName || !email || !confirmEmail || !phoneNumber || !addressLine || !country || !city || !pincode) {
+  if (!fullName || !email || !confirmEmail || !phoneNumber || !addressLine || !country || !city) {
     return setStatus(status, 'Complete all required registration fields before checkout.', 'error');
   }
   if (email !== confirmEmail) return setStatus(status, 'Email and confirm email must match.', 'error');
@@ -259,7 +258,7 @@ async function handleEnrollSubmit(event) {
   const result = await postJson(api(REGISTER_API), {
     planKey: plan.key, checkoutReference: cref,
     fullName, email, confirmEmail, phoneNumber, password,
-    addressLine, country, city, pincode, company
+    addressLine, country, city, company
   });
 
   if (!result.ok) { setStatus(status, result.message || 'We could not complete your registration.', 'error'); submit.disabled = false; return; }
@@ -334,7 +333,7 @@ async function handleForgot(event) {
 function init() {
   bindEnrollButtons();
 
-  loadAndRenderCourses((courses) => {
+  loadCourses().then((courses) => {
     for (const c of courses) {
       const limit = Number(c.seatLimit || 0);
       const remaining = Number(c.seatsRemaining ?? limit);

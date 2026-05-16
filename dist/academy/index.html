@@ -28,9 +28,9 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="./assets/main-CS5ORi7u.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/styles-C6vc9y4q.js">
-    <link rel="stylesheet" crossorigin href="./assets/styles-C5Dl2Fb8.css">
+    <script type="module" crossorigin src="./assets/main-Bg8dWfbW.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/styles-CKIK7zMu.js">
+    <link rel="stylesheet" crossorigin href="./assets/styles-ogjUNB3r.css">
   </head>
   <body>
     <header class="topbar">
@@ -102,29 +102,35 @@
               <div class="creation-grid">
                 <article class="creation-card cinematic">
                   <span>Cinematic AI Videos</span>
-                  <b class="play-dot"></b>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card images">
                   <span>AI Images</span>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card voice">
                   <span>AI Voiceovers</span>
-                  <b class="waveform"></b>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card ads">
                   <span>Social Media Ads</span>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card product">
                   <span>Product Visuals</span>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card templates">
                   <span>Templates</span>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card avatar">
                   <span>AI Avatars</span>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
                 <article class="creation-card reels">
                   <span>Reels &amp; Short Videos</span>
+                  <div class="creation-thumb" aria-hidden="true"></div>
                 </article>
               </div>
               <div class="included-strip">
@@ -137,7 +143,7 @@
 
             <section class="trainer-card" aria-label="Trainer">
               <div class="trainer-portrait">
-                <img src="./assets/tarek-al-basha-DQX8Mikn.jpg" alt="Tarek Bacha" />
+                <img src="./assets/tarek-al-basha-DEQhppAV.webp" alt="Tarek Bacha" />
               </div>
               <div>
                 <h2>Your Trainer: Tarek Bacha <span class="verified-dot"></span></h2>
@@ -199,20 +205,6 @@
                 </div>
                 <b class="stripe-word">stripe</b>
               </div>
-              <div class="payment-option">
-                <span class="radio-dot empty"></span>
-                <div>
-                  <strong>Pay Later (Manual)</strong>
-                  <small>We'll contact you to complete payment</small>
-                </div>
-              </div>
-            </div>
-
-            <div class="pay-logos" aria-label="Accepted payments">
-              <span>VISA</span>
-              <span>MC</span>
-              <span>Apple Pay</span>
-              <span>G Pay</span>
             </div>
 
             <div class="price-box">
@@ -294,39 +286,6 @@
         </div>
       </section>
 
-      <section class="section program-details" id="programs">
-        <div class="container">
-          <div class="section-head">
-            <span class="section-kicker">Program</span>
-            <h2 class="section-title">One training package. Thirty seats.</h2>
-            <p class="section-desc">
-              The live course list can update from the academy admin portal. Reserve with the same email you will use for login.
-            </p>
-          </div>
-          <div class="plan-grid">
-            <article class="plan featured">
-              <span class="plan-badge">Limited seats</span>
-              <h3 class="plan-name">AI Content Creation &amp; Media Production Training</h3>
-              <div class="plan-flags">
-                <span class="plan-flag">12 hours</span>
-                <span class="plan-flag">30 seats</span>
-                <span class="plan-flag">Tarek Bacha</span>
-              </div>
-              <div class="plan-price">$200</div>
-              <div class="plan-meta">From Prompt to Production: hands-on AI content and media creation.</div>
-              <div class="seat-alert">Limited intake: 30 seats only. Enrollment closes when seats are filled.</div>
-              <ul class="plan-list">
-                <li>Prompt libraries, campaign images, scripts, storyboards, and short-form video assets</li>
-                <li>Brand-ready image, video, and voice outputs with Arabic and English workflows</li>
-                <li>Templates, QA rubrics, governance checklists, and a 30-day action plan</li>
-              </ul>
-              <div class="plan-action">
-                <button class="btn btn-primary btn-block" type="button" data-enroll-plan="sprint">Secure your seat</button>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
     </main>
 
     <footer class="footer">
@@ -390,10 +349,6 @@
             <div class="field">
               <label for="enrollment-city">City</label>
               <input id="enrollment-city" name="city" type="text" autocomplete="address-level2" required />
-            </div>
-            <div class="field">
-              <label for="enrollment-pincode">Pincode</label>
-              <input id="enrollment-pincode" name="pincode" type="text" autocomplete="postal-code" required />
             </div>
             <div class="field">
               <label for="enrollment-company">Company (optional)</label>
@@ -460,7 +415,7 @@
           <button type="submit" class="btn btn-primary btn-block" id="login-modal-submit">Login</button>
           <p class="modal-foot centered">
             Don't have an account?
-            <a class="link" href="#programs" data-close-modal>Pick a plan</a>
+            <a class="link" href="#login" data-close-modal>Reserve a seat</a>
           </p>
         </form>
       </div>
