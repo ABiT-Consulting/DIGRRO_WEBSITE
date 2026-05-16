@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: cpanel-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sync-cpanel-branch:
     if: github.ref == 'refs/heads/main'
@@ -355,14 +359,7 @@ jobs:
             local roots=(
               "${repo_root_abs}"
               "${repo_root_rel}"
-              "${account_home}/public_html/digrro.com"
-              "public_html/digrro.com"
-              "${account_home}/digrro.com"
               "digrro.com"
-              "${account_home}/public_html/digrro"
-              "public_html/digrro"
-              "${account_home}/public_html"
-              "public_html"
             )
             local asset
             local api_file
@@ -427,14 +424,7 @@ jobs:
             local roots=(
               "${repo_root_abs}"
               "${repo_root_rel}"
-              "${account_home}/public_html/digrro.com"
-              "public_html/digrro.com"
-              "${account_home}/digrro.com"
               "digrro.com"
-              "${account_home}/public_html/digrro"
-              "public_html/digrro"
-              "${account_home}/public_html"
-              "public_html"
             )
 
             runtime_env_file="$(mktemp)"
@@ -463,14 +453,7 @@ jobs:
             local roots=(
               "${repo_root_abs}"
               "${repo_root_rel}"
-              "${account_home}/public_html/digrro.com"
-              "public_html/digrro.com"
-              "${account_home}/digrro.com"
               "digrro.com"
-              "${account_home}/public_html/digrro"
-              "public_html/digrro"
-              "${account_home}/public_html"
-              "public_html"
             )
             local root_file
             local asset
