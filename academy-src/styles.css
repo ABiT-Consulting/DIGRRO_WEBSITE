@@ -45,6 +45,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[dir="rtl"] body {
+  font-family: "Noto Kufi Arabic", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-align: right;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -1584,6 +1589,89 @@ select {
 
 .auth-card {
   width: min(460px, 100%);
+}
+
+:root[dir="rtl"] .hero-copy,
+:root[dir="rtl"] .modal-card,
+:root[dir="rtl"] .portal-shell,
+:root[dir="rtl"] .footer {
+  text-align: right;
+}
+
+:root[dir="rtl"] .hero-lede,
+:root[dir="rtl"] .section-desc,
+:root[dir="rtl"] .trainer-card p,
+:root[dir="rtl"] .trust-row p {
+  text-align: right;
+}
+
+:root[dir="rtl"] .proof-grid > div {
+  border-left: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+:root[dir="rtl"] .proof-grid > div:first-child {
+  border-right: 0;
+}
+
+:root[dir="rtl"] .reserve-form input {
+  padding: 0 1rem 0 3rem;
+  text-align: right;
+}
+
+:root[dir="rtl"] .field input,
+:root[dir="rtl"] .field select,
+:root[dir="rtl"] .field textarea {
+  text-align: right;
+}
+
+:root[dir="rtl"] input[type="email"],
+:root[dir="rtl"] input[type="tel"],
+:root[dir="rtl"] #login-modal-email,
+:root[dir="rtl"] #enrollment-email,
+:root[dir="rtl"] #enrollment-email-confirm,
+:root[dir="rtl"] #reserve-email,
+:root[dir="rtl"] #reserve-phone,
+:root[dir="rtl"] #enrollment-phone {
+  direction: ltr;
+  text-align: left;
+}
+
+:root[dir="rtl"] .field-icon {
+  right: auto;
+  left: 1rem;
+}
+
+:root[dir="rtl"] .check-list li,
+:root[dir="rtl"] .plan-list li {
+  padding-right: 1.35rem;
+  padding-left: 0;
+}
+
+:root[dir="rtl"] .check-list li::before,
+:root[dir="rtl"] .plan-list li::before {
+  right: 0;
+  left: auto;
+}
+
+:root[dir="rtl"] .check-list li::after,
+:root[dir="rtl"] .plan-list li::after {
+  right: 0.2rem;
+  left: auto;
+}
+
+:root[dir="rtl"] .verified-dot {
+  margin-right: 0.3rem;
+  margin-left: 0;
+}
+
+:root[dir="rtl"] .trust-row article {
+  border-left: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+:root[dir="rtl"] .trust-row article:first-child {
+  border-right: 0;
 }
 
 @media (max-width: 1080px) {

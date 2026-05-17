@@ -25,9 +25,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Kufi+Arabic:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (() => {
+        const requested = new URLSearchParams(window.location.search).get('lang');
+        const languages = Array.isArray(navigator.languages) && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+        if (requested === 'ar' || (!requested && languages.some((language) => String(language).toLowerCase().startsWith('ar')))) {
+          document.documentElement.lang = 'ar';
+          document.documentElement.dir = 'rtl';
+        }
+      })();
+    </script>
     <script type="module" src="./main.js"></script>
   </head>
   <body>

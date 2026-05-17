@@ -25,12 +25,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Kufi+Arabic:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="./assets/main-Bg8dWfbW.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/styles-CKIK7zMu.js">
-    <link rel="stylesheet" crossorigin href="./assets/styles-ogjUNB3r.css">
+    <script>
+      (() => {
+        const requested = new URLSearchParams(window.location.search).get('lang');
+        const languages = Array.isArray(navigator.languages) && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+        if (requested === 'ar' || (!requested && languages.some((language) => String(language).toLowerCase().startsWith('ar')))) {
+          document.documentElement.lang = 'ar';
+          document.documentElement.dir = 'rtl';
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/main-BAzc71XR.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/styles-CK633lua.js">
+    <link rel="stylesheet" crossorigin href="./assets/styles-DD8klkKp.css">
   </head>
   <body>
     <header class="topbar">
