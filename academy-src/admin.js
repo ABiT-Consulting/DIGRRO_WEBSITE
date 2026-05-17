@@ -1,5 +1,3 @@
-import './styles.css';
-
 const LOGIN_API = './api/admin-login.php';
 const COURSES_API = './api/admin-courses.php';
 const TRAINERS_API = './api/admin-trainers.php';

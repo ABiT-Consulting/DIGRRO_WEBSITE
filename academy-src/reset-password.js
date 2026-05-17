@@ -1,5 +1,3 @@
-import './styles.css';
-
 const RESET_PASSWORD_API = './api/reset-password.php';
 const STUDENT_TOKEN_KEY = 'digrro_academy_student_token';
 const $ = (id) => document.getElementById(id);
