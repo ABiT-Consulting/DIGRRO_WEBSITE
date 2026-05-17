@@ -44,7 +44,7 @@ import productImage from './assets/training-product-visuals.png';
 import templatesImage from './assets/training-templates.png';
 import avatarImage from './assets/training-ai-avatar.png';
 import reelsVideo from './assets/training-reels-short-videos.mp4';
-import trainerImage from './assets/tarek-al-basha.webp';
+import trainerImage from './assets/trainer-tarek-bacha.jpeg';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -707,31 +707,39 @@ function SeatStory({ course }) {
 }
 
 function CreationShowcase() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const renderCreationCard = (item, keySuffix) => (
+    <TiltCard key={`${item.title[0]}-${keySuffix}`} className="fx-creation-card">
+      <h3>{item.title[isArabic ? 1 : 0]}</h3>
+      <div className="fx-creation-media">
+        {item.type === 'video' ? (
+          <video src={item.media} muted loop playsInline autoPlay preload="metadata" aria-label={item.title[isArabic ? 1 : 0]} />
+        ) : (
+          <img src={item.media} alt="" loading="lazy" />
+        )}
+        <div className="fx-video-preview"><Play size={18} /></div>
+      </div>
+    </TiltCard>
+  );
+
   return (
     <section className="fx-section fx-showcase-section">
       <div className="fx-section-head fx-reveal">
         <span className="fx-kicker"><CirclePlay size={16} /> Showcase</span>
         <h2>{tr('creationTitle')}</h2>
       </div>
-      <div className="fx-horizontal-showcase" aria-label={tr('creationTitle')}>
-        {creationItems.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <TiltCard key={item.title[0]} className="fx-creation-card fx-reveal">
-              <span className="fx-card-index">{String(index + 1).padStart(2, '0')}</span>
-              <h3>{item.title[isArabic ? 1 : 0]}</h3>
-              <div className="fx-creation-media">
-                {item.type === 'video' ? (
-                  <video src={item.media} muted loop playsInline autoPlay preload="metadata" aria-label={item.title[isArabic ? 1 : 0]} />
-                ) : (
-                  <img src={item.media} alt="" loading="lazy" />
-                )}
-                <div className="fx-video-preview"><Play size={18} /></div>
-              </div>
-              <Icon className="fx-floating-icon" size={25} />
-            </TiltCard>
-          );
-        })}
+      <div className="fx-showcase-frame">
+        <div className={`fx-horizontal-showcase fx-reveal ${shouldReduceMotion ? 'is-static' : ''}`} aria-label={tr('creationTitle')}>
+          <div className="fx-showcase-track">
+            <div className="fx-showcase-set">
+              {creationItems.map((item) => renderCreationCard(item, 'primary'))}
+            </div>
+            <div className="fx-showcase-set" aria-hidden="true">
+              {creationItems.map((item) => renderCreationCard(item, 'duplicate'))}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
