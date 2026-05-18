@@ -70,7 +70,10 @@ Recommended live cPanel runtime settings:
 ACADEMY_ENV=production
 ACADEMY_BASE_URL=https://digrro.com/academy
 STRIPE_SECRET_KEY_LIVE=rk_live_...
+GOOGLE_ANALYTICS_ID=G-RH6L7EDCHK
 ```
+
+Google Analytics 4 is loaded on the public academy page with the Digrro web stream `G-RH6L7EDCHK`. A deployed `.env` can override it with `GOOGLE_ANALYTICS_ID`; build-time `VITE_GOOGLE_ANALYTICS_ID` also works, and `GA_MEASUREMENT_ID` / `VITE_GA_MEASUREMENT_ID` are accepted aliases.
 
 `npm run academy:dev` uses the Vite local API and stores developer accounts in `academy-data/platform.json`. With `STRIPE_SECRET_KEY_TEST`, local registration creates Stripe test Checkout Sessions. Without a test key, local dev falls back to a mock paid checkout so live credentials are still not used.
 

@@ -297,6 +297,17 @@ function firstEnv(env, names) {
   return '';
 }
 
+function googleAnalyticsId(env) {
+  const value = firstEnv(env, [
+    'GOOGLE_ANALYTICS_ID',
+    'GA_MEASUREMENT_ID',
+    'VITE_GOOGLE_ANALYTICS_ID',
+    'VITE_GA_MEASUREMENT_ID'
+  ]);
+
+  return /^G-[A-Z0-9]+$/i.test(value) ? value : null;
+}
+
 function stripeSecretKey(env) {
   const environment = runtimeEnvironment(env);
   const preferred = environment === 'production'
@@ -712,6 +723,15 @@ export function academyApiPlugin(opts = {}) {
           .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
           .map((course) => publicView(course, platformData));
         return send(res, 200, { ok: true, courses: list });
+      }
+
+      // Public runtime config
+      if (url === '/api/public-config' || url === '/api/public-config.php') {
+        if (req.method !== 'GET') return send(res, 405, { ok: false, message: 'Method not allowed.' });
+        return send(res, 200, {
+          ok: true,
+          googleAnalyticsId: googleAnalyticsId(env)
+        });
       }
 
       // Admin login

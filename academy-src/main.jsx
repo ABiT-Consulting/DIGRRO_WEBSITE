@@ -35,6 +35,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { loadCourses } from './lib/courses.js';
+import { initGoogleAnalytics } from './lib/google-analytics.js';
 
 import cinematicVideo from './assets/training-cinematic-video.mp4';
 import aiImagesImage from './assets/training-ai-images.png';
@@ -1119,6 +1120,7 @@ function App() {
     document.title = isArabic
       ? 'أكاديمية دجرو | تدريب صناعة المحتوى والإنتاج الإعلامي بالذكاء الاصطناعي'
       : 'Digrro Academy | AI Content Creation & Media Production Training';
+    initGoogleAnalytics();
   }, []);
 
   useEffect(() => {
