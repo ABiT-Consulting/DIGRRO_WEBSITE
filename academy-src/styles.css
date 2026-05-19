@@ -2647,6 +2647,11 @@ body:has(.fx-academy) {
   opacity: 0.82;
 }
 
+.fx-combo-field input[list]::-webkit-calendar-picker-indicator {
+  display: none !important;
+  opacity: 0;
+}
+
 .fx-form-stack input,
 .fx-modal-form input {
   width: 100%;
@@ -3509,6 +3514,41 @@ body:has(.fx-academy) {
 
 .is-rtl .fx-modal-card h2 {
   margin: 1rem 0 0.5rem 3rem;
+}
+
+.is-rtl .fx-form-stack label,
+.is-rtl .fx-modal-form label {
+  direction: rtl;
+  text-align: right;
+}
+
+.is-rtl .fx-form-stack input,
+.is-rtl .fx-modal-form input {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+}
+
+.is-rtl .fx-form-stack input::placeholder,
+.is-rtl .fx-modal-form input::placeholder,
+.is-rtl #login-modal-email:placeholder-shown,
+.is-rtl #enrollment-email:placeholder-shown,
+.is-rtl #enrollment-email-confirm:placeholder-shown,
+.is-rtl #reserve-email:placeholder-shown,
+.is-rtl #reserve-phone:placeholder-shown,
+.is-rtl #enrollment-phone:placeholder-shown {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+}
+
+.is-rtl .fx-form-stack input[type="email"]:not(:placeholder-shown),
+.is-rtl .fx-modal-form input[type="email"]:not(:placeholder-shown),
+.is-rtl .fx-form-stack input[type="tel"]:not(:placeholder-shown),
+.is-rtl .fx-modal-form input[type="tel"]:not(:placeholder-shown) {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
 }
 
 .is-rtl .fx-combo-field input {

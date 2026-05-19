@@ -124,6 +124,7 @@ const text = {
   loginTitle: ['Login to Academy', 'تسجيل الدخول إلى الأكاديمية'],
   loginCopy: ['Use the email and password from your registration.', 'استخدم البريد الإلكتروني وكلمة المرور من تسجيلك.'],
   loginButton: ['Login', 'تسجيل الدخول'],
+  loginInvalid: ['Email or password is incorrect', 'البريد الإلكتروني أو كلمة المرور غير صحيحة'],
   forgot: ['Forgot password?', 'نسيت كلمة المرور؟'],
   noAccount: ["Don't have an account?", 'ليس لديك حساب؟'],
   reserveSeat: ['Reserve a seat', 'احجز مقعدا'],
@@ -174,6 +175,14 @@ function tr(key) {
   return value[isArabic ? 1 : 0];
 }
 
+function loginErrorMessage(message) {
+  const normalized = String(message || '').trim().replace(/\.$/, '');
+  if (normalized === 'Email or password is incorrect') {
+    return tr('loginInvalid');
+  }
+  return message || tr('loginInvalid');
+}
+
 function localizedPair(value) {
   return Array.isArray(value) ? value[isArabic ? 1 : 0] : value;
 }
@@ -197,22 +206,25 @@ function cityName(city) {
 }
 
 function defaultLocation() {
-  const country = locationOptions[0];
   return {
-    country: countryName(country),
-    city: cityName(country.cities[0]),
-    phoneNumber: `${country.dialCode} `,
+    country: '',
+    city: '',
+    phoneNumber: '',
   };
 }
 
 function cityOptionsFor(country) {
-  const option = findCountryOption(country) || locationOptions[0];
-  return option.cities.map(cityName);
+  const option = findCountryOption(country);
+  return option ? option.cities.map(cityName) : [];
 }
 
-function defaultCityFor(country, fallback = '') {
+function cityForCountry(country, fallback = '') {
   const option = findCountryOption(country);
-  return option ? cityName(option.cities[0]) : fallback;
+  const normalizedCity = normalizeLocationText(fallback);
+  if (!option || !normalizedCity) return '';
+  return option.cities.some((city) => city.some((label) => normalizeLocationText(label) === normalizedCity))
+    ? fallback
+    : '';
 }
 
 function phoneWithCountryCode(phoneNumber, country, previousCountry = '') {
@@ -791,7 +803,7 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
     setReserve((current) => ({
       ...current,
       country,
-      city: defaultCityFor(country, current.city),
+      city: cityForCountry(country, current.city),
       phoneNumber: phoneWithCountryCode(current.phoneNumber, country, current.country),
     }));
   };
@@ -1081,7 +1093,7 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
     setForm((current) => ({
       ...current,
       country,
-      city: defaultCityFor(country, current.city),
+      city: cityForCountry(country, current.city),
       phoneNumber: phoneWithCountryCode(current.phoneNumber, country, current.country),
     }));
   };
@@ -1097,13 +1109,14 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
     if (!open) return;
     setForm((current) => {
       const country = reserve.country || current.country;
+      const city = reserve.city || (!reserve.country ? current.city : '');
       return {
         ...current,
         fullName: reserve.fullName || current.fullName,
         email: reserve.email || current.email,
         confirmEmail: reserve.email || current.confirmEmail,
         country,
-        city: reserve.city || current.city || defaultCityFor(country, ''),
+        city: cityForCountry(country, city),
         phoneNumber: reserve.phoneNumber || phoneWithCountryCode(current.phoneNumber, country, current.country),
       };
     });
@@ -1232,7 +1245,7 @@ function LoginModal({ open, onClose, onLoggedIn }) {
     const result = await postJson(api(LOGIN_API), { email: email.trim().toLowerCase(), password });
     setLoading(false);
     if (!result.ok) {
-      setStatus(result.message || 'Login failed.');
+      setStatus(loginErrorMessage(result.message));
       setKind('error');
       return;
     }
@@ -1268,7 +1281,7 @@ function LoginModal({ open, onClose, onLoggedIn }) {
             <form className="fx-modal-form single" onSubmit={submit}>
               <label>
                 <span>{tr('email')}</span>
-                <input value={email} type="email" onChange={(event) => setEmail(event.target.value)} placeholder={tr('email')} />
+                <input id="login-modal-email" value={email} type="email" onChange={(event) => setEmail(event.target.value)} placeholder={tr('email')} />
               </label>
               <label>
                 <span>{tr('password')}</span>
@@ -1349,7 +1362,7 @@ function App() {
         <FinalCta openEnroll={openEnroll} />
       </main>
       <footer className="fx-footer">
-        <span>{isArabic ? 'أكاديمية دجرو - تدريب ذكاء اصطناعي لصناع المحتوى والفرق.' : 'Digrro Academy - AI training for creators and teams.'}</span>
+        <span>{isArabic ? 'أكاديمية دجرو - تدريب بالذكاء الاصطناعي لصناع المحتوى والفرق.' : 'Digrro Academy - AI training for creators and teams.'}</span>
         <a href="https://wa.me/971544649231?text=Hi%20Digrro%20team%2C%20I%20want%20to%20learn%20more%20about%20Digrro%20Academy." target="_blank" rel="noreferrer">
           {isArabic ? 'تحدث مع دجرو' : 'Talk to Digrro'}
         </a>
