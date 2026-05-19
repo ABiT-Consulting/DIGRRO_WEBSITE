@@ -19,11 +19,9 @@ import {
   Gauge,
   Globe2,
   GraduationCap,
-  LockKeyhole,
   LogIn,
   Mail,
   Mic2,
-  MousePointer2,
   Palette,
   Play,
   Rocket,
@@ -32,20 +30,20 @@ import {
   Users,
   WandSparkles,
   X,
-  Zap,
 } from 'lucide-react';
 import { loadCourses } from './lib/courses.js';
 import { initGoogleAnalytics } from './lib/google-analytics.js';
 
-import cinematicVideo from './assets/training-cinematic-video.mp4';
-import aiImagesImage from './assets/training-ai-images.png';
-import voiceImage from './assets/training-ai-voiceover.png';
-import adsImage from './assets/training-social-media.png';
-import productImage from './assets/training-product-visuals.png';
-import templatesImage from './assets/training-templates.png';
-import avatarImage from './assets/training-ai-avatar.png';
-import reelsVideo from './assets/training-reels-short-videos.mp4';
+import cinematicPreview from './assets/academy-create-cinematic.mp4';
+import aiImagesPreview from './assets/academy-create-images.png';
+import voicePreview from './assets/academy-create-voiceover.png';
+import adsPreview from './assets/academy-create-social.png';
+import productPreview from './assets/academy-create-product.png';
+import templatesPreview from './assets/academy-create-templates.png';
+import avatarPreview from './assets/academy-create-avatar.png';
+import reelsPreview from './assets/academy-create-reels.mp4';
 import trainerImage from './assets/trainer-tarek-bacha.jpeg';
+import academyLogo from './assets/academy-logo.svg';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -54,7 +52,6 @@ const LOGIN_API = './api/login.php';
 const STUDENT_API = './api/student.php';
 const REQUEST_PASSWORD_RESET_API = './api/request-password-reset.php';
 const STUDENT_TOKEN_KEY = 'digrro_academy_student_token';
-const BRAND_LOGO_URL = 'https://digrro.com/image_fc91df1d-53b0-439b-9c3e-c444469fda79-removebg-preview%20copy%20copy%20copy.png';
 
 const locale = (() => {
   const requested = new URLSearchParams(window.location.search).get('lang');
@@ -69,6 +66,8 @@ const isArabic = locale === 'ar';
 const text = {
   navLogin: ['Log in', 'تسجيل الدخول'],
   navAccount: ['Already have an account?', 'لديك حساب بالفعل؟'],
+  languageToggle: ['العربية', 'English'],
+  languageAria: ['Switch language to Arabic', 'تغيير اللغة إلى الإنجليزية'],
   heroBadge: ['AI media academy', 'أكاديمية إعلام بالذكاء الاصطناعي'],
   heroTitleA: ['Master AI Content Creation', 'أتقن صناعة المحتوى'],
   heroTitleB: ['& Media Production', 'والإنتاج الإعلامي بالذكاء الاصطناعي'],
@@ -77,14 +76,8 @@ const text = {
     'تجربة تدريبية سينمائية لمدة 12 ساعة لصناعة صور الحملات، الفيديو بالذكاء الاصطناعي، التعليقات الصوتية، القوالب، وسير العمل الجاهز للإنتاج.',
   ],
   primaryCta: ['Reserve my seat', 'احجز مقعدي'],
-  secondaryCta: ['Explore the journey', 'استكشف الرحلة'],
   dashboardTitle: ['Live Academy OS', 'نظام الأكاديمية المباشر'],
   dashboardSubtitle: ['Cohort control center', 'مركز إدارة الدفعة'],
-  seatTitle: ['Only 30 seats. One premium cohort.', '30 مقعدا فقط. دفعة تدريبية واحدة.'],
-  seatCopy: [
-    'Enrollment closes automatically when the cohort is full.',
-    'يغلق التسجيل تلقائيا عند اكتمال المقاعد.',
-  ],
   reserveTitle: ['Reserve Your Seat Now', 'احجز مقعدك الآن'],
   reserveCopy: ['Fill in your details to secure your spot.', 'أدخل بياناتك لتأكيد مقعدك.'],
   fullName: ['Full Name', 'الاسم الكامل'],
@@ -97,12 +90,6 @@ const text = {
   heroStatOne: ['12 hours', '12 ساعة'],
   heroStatTwo: ['30 seats', '30 مقعدا'],
   heroStatThree: ['Arabic / English', 'العربية / الإنجليزية'],
-  storyKicker: ['From prompt to production', 'من الفكرة إلى الإنتاج'],
-  storyTitle: ['A training journey built like a studio pipeline.', 'رحلة تدريبية مبنية مثل خط إنتاج احترافي.'],
-  storyCopy: [
-    'Every section moves the learner from concept to cinematic asset creation, campaign systems, QA, and publishing workflows.',
-    'كل مرحلة تنقل المتدرب من الفكرة إلى صناعة أصول سينمائية، أنظمة حملات، ضبط جودة، وسير عمل للنشر.',
-  ],
   creationTitle: ["What you'll create", 'ما الذي ستنشئه'],
   modulesTitle: ['Course operating system', 'نظام تشغيل الدورة'],
   modulesCopy: [
@@ -155,10 +142,98 @@ const text = {
   completePayment: ['Complete Stripe payment', 'أكمل الدفع عبر Stripe'],
 };
 
+const locationOptions = [
+  { country: ['United Arab Emirates', 'الإمارات العربية المتحدة'], dialCode: '+971', cities: [['Dubai', 'دبي'], ['Abu Dhabi', 'أبوظبي'], ['Sharjah', 'الشارقة'], ['Ajman', 'عجمان']] },
+  { country: ['Saudi Arabia', 'السعودية'], dialCode: '+966', cities: [['Riyadh', 'الرياض'], ['Jeddah', 'جدة'], ['Dammam', 'الدمام'], ['Makkah', 'مكة']] },
+  { country: ['Qatar', 'قطر'], dialCode: '+974', cities: [['Doha', 'الدوحة'], ['Al Rayyan', 'الريان'], ['Lusail', 'لوسيل']] },
+  { country: ['Kuwait', 'الكويت'], dialCode: '+965', cities: [['Kuwait City', 'مدينة الكويت'], ['Hawalli', 'حولي'], ['Salmiya', 'السالمية']] },
+  { country: ['Bahrain', 'البحرين'], dialCode: '+973', cities: [['Manama', 'المنامة'], ['Riffa', 'الرفاع'], ['Muharraq', 'المحرق']] },
+  { country: ['Oman', 'عمان'], dialCode: '+968', cities: [['Muscat', 'مسقط'], ['Salalah', 'صلالة'], ['Sohar', 'صحار']] },
+  { country: ['Jordan', 'الأردن'], dialCode: '+962', cities: [['Amman', 'عمان'], ['Irbid', 'إربد'], ['Aqaba', 'العقبة']] },
+  { country: ['Lebanon', 'لبنان'], dialCode: '+961', cities: [['Beirut', 'بيروت'], ['Tripoli', 'طرابلس'], ['Saida', 'صيدا']] },
+  { country: ['Egypt', 'مصر'], dialCode: '+20', cities: [['Cairo', 'القاهرة'], ['Alexandria', 'الإسكندرية'], ['Giza', 'الجيزة']] },
+  { country: ['Iraq', 'العراق'], dialCode: '+964', cities: [['Baghdad', 'بغداد'], ['Basra', 'البصرة'], ['Erbil', 'أربيل']] },
+  { country: ['Syria', 'سوريا'], dialCode: '+963', cities: [['Damascus', 'دمشق'], ['Aleppo', 'حلب'], ['Homs', 'حمص']] },
+  { country: ['Palestine', 'فلسطين'], dialCode: '+970', cities: [['Ramallah', 'رام الله'], ['Gaza', 'غزة'], ['Nablus', 'نابلس']] },
+  { country: ['Morocco', 'المغرب'], dialCode: '+212', cities: [['Casablanca', 'الدار البيضاء'], ['Rabat', 'الرباط'], ['Marrakesh', 'مراكش']] },
+  { country: ['Tunisia', 'تونس'], dialCode: '+216', cities: [['Tunis', 'تونس'], ['Sfax', 'صفاقس'], ['Sousse', 'سوسة']] },
+  { country: ['Algeria', 'الجزائر'], dialCode: '+213', cities: [['Algiers', 'الجزائر'], ['Oran', 'وهران'], ['Constantine', 'قسنطينة']] },
+  { country: ['United States', 'الولايات المتحدة'], dialCode: '+1', cities: [['New York', 'نيويورك'], ['Los Angeles', 'لوس أنجلوس'], ['Chicago', 'شيكاغو']] },
+  { country: ['United Kingdom', 'المملكة المتحدة'], dialCode: '+44', cities: [['London', 'لندن'], ['Manchester', 'مانشستر'], ['Birmingham', 'برمنغهام']] },
+  { country: ['Canada', 'كندا'], dialCode: '+1', cities: [['Toronto', 'تورونتو'], ['Vancouver', 'فانكوفر'], ['Montreal', 'مونتريال']] },
+  { country: ['France', 'فرنسا'], dialCode: '+33', cities: [['Paris', 'باريس'], ['Lyon', 'ليون'], ['Marseille', 'مرسيليا']] },
+  { country: ['Germany', 'ألمانيا'], dialCode: '+49', cities: [['Berlin', 'برلين'], ['Munich', 'ميونخ'], ['Hamburg', 'هامبورغ']] },
+  { country: ['Turkey', 'تركيا'], dialCode: '+90', cities: [['Istanbul', 'إسطنبول'], ['Ankara', 'أنقرة'], ['Izmir', 'إزمير']] },
+  { country: ['India', 'الهند'], dialCode: '+91', cities: [['Mumbai', 'مومباي'], ['Delhi', 'دلهي'], ['Bengaluru', 'بنغالورو']] },
+  { country: ['Pakistan', 'باكستان'], dialCode: '+92', cities: [['Karachi', 'كراتشي'], ['Lahore', 'لاهور'], ['Islamabad', 'إسلام آباد']] },
+];
+
 function tr(key) {
   const value = text[key];
   if (!value) return key;
   return value[isArabic ? 1 : 0];
+}
+
+function localizedPair(value) {
+  return Array.isArray(value) ? value[isArabic ? 1 : 0] : value;
+}
+
+function normalizeLocationText(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function findCountryOption(value) {
+  const normalized = normalizeLocationText(value);
+  if (!normalized) return null;
+  return locationOptions.find((option) => option.country.some((label) => normalizeLocationText(label) === normalized)) || null;
+}
+
+function countryName(option) {
+  return localizedPair(option.country);
+}
+
+function cityName(city) {
+  return localizedPair(city);
+}
+
+function defaultLocation() {
+  const country = locationOptions[0];
+  return {
+    country: countryName(country),
+    city: cityName(country.cities[0]),
+    phoneNumber: `${country.dialCode} `,
+  };
+}
+
+function cityOptionsFor(country) {
+  const option = findCountryOption(country) || locationOptions[0];
+  return option.cities.map(cityName);
+}
+
+function defaultCityFor(country, fallback = '') {
+  const option = findCountryOption(country);
+  return option ? cityName(option.cities[0]) : fallback;
+}
+
+function phoneWithCountryCode(phoneNumber, country, previousCountry = '') {
+  const option = findCountryOption(country);
+  if (!option) return phoneNumber;
+  const nextCode = option.dialCode;
+  const trimmedPhone = String(phoneNumber || '').trim();
+  const previousCode = findCountryOption(previousCountry)?.dialCode;
+  const knownCodes = [...new Set(locationOptions.map((item) => item.dialCode))].sort((a, b) => b.length - a.length);
+  const activeCode = previousCode && trimmedPhone.startsWith(previousCode)
+    ? previousCode
+    : knownCodes.find((code) => trimmedPhone.startsWith(code));
+  const localNumber = activeCode ? trimmedPhone.slice(activeCode.length).trimStart() : trimmedPhone;
+  if (!trimmedPhone || knownCodes.includes(trimmedPhone)) return `${nextCode} `;
+  return `${nextCode} ${localNumber}`.trimEnd();
+}
+
+function switchLanguage() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('lang', isArabic ? 'en' : 'ar');
+  window.location.href = url.href;
 }
 
 function api(path) {
@@ -199,14 +274,14 @@ function getJson(url, token) {
 }
 
 const creationItems = [
-  { title: ['Cinematic AI videos', 'فيديوهات سينمائية بالذكاء الاصطناعي'], media: cinematicVideo, type: 'video', icon: Film },
-  { title: ['AI image worlds', 'عوالم صور بالذكاء الاصطناعي'], media: aiImagesImage, type: 'image', icon: Palette },
-  { title: ['Voiceover systems', 'أنظمة تعليق صوتي'], media: voiceImage, type: 'image', icon: Mic2 },
-  { title: ['Social ad engines', 'محركات إعلانات اجتماعية'], media: adsImage, type: 'image', icon: BarChart3 },
-  { title: ['Product visuals', 'صور منتجات'], media: productImage, type: 'image', icon: Sparkles },
-  { title: ['Campaign templates', 'قوالب حملات'], media: templatesImage, type: 'image', icon: BookOpen },
-  { title: ['AI avatars', 'شخصيات افتراضية'], media: avatarImage, type: 'image', icon: Users },
-  { title: ['Reels & short videos', 'ريلز وفيديوهات قصيرة'], media: reelsVideo, type: 'video', icon: CirclePlay },
+  { title: ['Campaign templates', 'قوالب حملات'], shortTitle: ['Templates', 'قوالب'], media: templatesPreview, type: 'image', icon: BookOpen },
+  { title: ['Reels & short videos', 'ريلز وفيديوهات قصيرة'], shortTitle: ['Reels', 'ريلز'], media: reelsPreview, type: 'video', icon: CirclePlay },
+  { title: ['AI avatars', 'شخصيات افتراضية'], shortTitle: ['AI avatars', 'شخصيات'], media: avatarPreview, type: 'image', icon: Users },
+  { title: ['Cinematic AI videos', 'فيديوهات سينمائية بالذكاء الاصطناعي'], shortTitle: ['AI videos', 'فيديوهات'], media: cinematicPreview, type: 'video', icon: Film },
+  { title: ['AI image worlds', 'عوالم صور بالذكاء الاصطناعي'], shortTitle: ['AI images', 'صور'], media: aiImagesPreview, type: 'image', icon: Palette },
+  { title: ['Voiceover systems', 'أنظمة تعليق صوتي'], shortTitle: ['Voiceovers', 'تعليق صوتي'], media: voicePreview, type: 'image', icon: Mic2 },
+  { title: ['Product visuals', 'صور منتجات'], shortTitle: ['Products', 'منتجات'], media: productPreview, type: 'image', icon: Sparkles },
+  { title: ['Social ad engines', 'محركات إعلانات اجتماعية'], shortTitle: ['Social ads', 'إعلانات'], media: adsPreview, type: 'image', icon: BarChart3 },
 ];
 
 const modules = [
@@ -293,6 +368,19 @@ const testimonials = [
   ['Practical, premium, and immediately useful for content teams.', 'عملية وفاخرة ومفيدة مباشرة لفرق المحتوى.'],
   ['The workflow changed how we plan campaign assets.', 'غيّر سير العمل طريقة تخطيطنا لأصول الحملات.'],
   ['Exactly the kind of AI media training teams need now.', 'هذا بالضبط نوع تدريب الإعلام بالذكاء الاصطناعي الذي تحتاجه الفرق الآن.'],
+];
+
+const repeatItems = (items, repeatCount) => Array.from(
+  { length: repeatCount },
+  () => items,
+).flat();
+
+const testimonialLoopItems = repeatItems(testimonials, 4);
+const trainerHighlights = [
+  ['Real media and content production experience', 'خبرة عملية في الإعلام وصناعة المحتوى'],
+  ['AI tools for video, image, and voice', 'أدوات ذكاء اصطناعي للفيديو والصورة والصوت'],
+  ['Campaign-ready outputs for teams', 'مخرجات جاهزة للحملات والفرق'],
+  ['Hands-on journey from prompt to production', 'منهج عملي من البداية إلى الإنتاج'],
 ];
 
 function usePageMotion() {
@@ -542,10 +630,13 @@ function Header({ onLogin }) {
   return (
     <header className="fx-nav">
       <a className="fx-brand" href="../index.html" aria-label="Digrro Academy">
-        <img src={BRAND_LOGO_URL} alt="" />
-        <span>{isArabic ? 'أكاديمية' : 'Academy'}</span>
+        <img src={academyLogo} alt="Digrro Academy" />
       </a>
       <nav className="fx-nav-actions" aria-label="Academy navigation">
+        <button className="fx-language-button" type="button" onClick={switchLanguage} aria-label={tr('languageAria')}>
+          <Globe2 size={16} />
+          <span>{tr('languageToggle')}</span>
+        </button>
         <span>{tr('navAccount')}</span>
         <button className="fx-nav-link" type="button" onClick={onLogin}>{tr('navLogin')}</button>
         <button className="fx-icon-button" type="button" onClick={onLogin} aria-label={tr('navLogin')}>
@@ -593,7 +684,60 @@ function DashboardMockup({ course }) {
   );
 }
 
-function Hero({ course, reserve, setReserve, openEnroll, openLogin }) {
+function HeroTrainerCard() {
+  return (
+    <TiltCard className="fx-hero-trainer">
+      <div className="fx-hero-trainer-image">
+        <img src={trainerImage} alt="Tarek Bacha" loading="eager" />
+      </div>
+      <div className="fx-hero-trainer-content">
+        <h3>{tr('trainerTitle')} <BadgeCheck size={18} /></h3>
+        <p>{tr('trainerRole')}</p>
+        <ul>
+          {trainerHighlights.map((item) => (
+            <li key={item[0]}><Check size={15} />{item[isArabic ? 1 : 0]}</li>
+          ))}
+        </ul>
+      </div>
+    </TiltCard>
+  );
+}
+
+function HeroCreationPreview() {
+  const renderPreviewCard = (item, keySuffix) => {
+    const Icon = item.icon;
+    const title = item.shortTitle?.[isArabic ? 1 : 0] || item.title[isArabic ? 1 : 0];
+    return (
+      <div className="fx-hero-creation-card" key={`${item.title[0]}-${keySuffix}`}>
+        <div className="fx-hero-creation-media">
+          {item.type === 'video' ? (
+            <video src={item.media} muted loop playsInline autoPlay preload="metadata" aria-label={item.title[isArabic ? 1 : 0]} />
+          ) : (
+            <img src={item.media} alt="" loading="eager" decoding="async" />
+          )}
+        </div>
+        <span><Icon size={13} />{title}</span>
+      </div>
+    );
+  };
+
+  return (
+    <motion.div className="fx-hero-creation" variants={{ hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0 } }}>
+      <div className="fx-hero-creation-head">
+        <span>{tr('creationTitle')}</span>
+      </div>
+      <div className="fx-hero-creation-rail" aria-label={tr('creationTitle')}>
+        <div className="fx-hero-creation-track">
+          <div className="fx-hero-creation-set">
+            {creationItems.map((item, itemIndex) => renderPreviewCard(item, itemIndex))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function Hero({ course, reserve, setReserve, openEnroll }) {
   return (
     <section className="fx-hero" id="top">
       <div className="fx-aurora" aria-hidden="true" />
@@ -622,26 +766,36 @@ function Hero({ course, reserve, setReserve, openEnroll, openLogin }) {
             <MagneticButton onClick={openEnroll}>
               {tr('primaryCta')} <ArrowRight size={18} />
             </MagneticButton>
-            <MagneticButton variant="secondary" onClick={() => document.querySelector('#journey')?.scrollIntoView({ behavior: 'smooth' })}>
-              {tr('secondaryCta')} <MousePointer2 size={17} />
-            </MagneticButton>
           </motion.div>
           <motion.div className="fx-hero-stats" variants={{ hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0 } }}>
             <span><Clock3 size={17} />{tr('heroStatOne')}</span>
             <span><Users size={17} />{tr('heroStatTwo')}</span>
             <span><Globe2 size={17} />{tr('heroStatThree')}</span>
           </motion.div>
+          <HeroCreationPreview />
         </motion.div>
         <div className="fx-hero-side">
-          <DashboardMockup course={course} />
-          <ReservePanel course={course} reserve={reserve} setReserve={setReserve} openEnroll={openEnroll} openLogin={openLogin} />
+          <HeroTrainerCard />
+          <ReservePanel course={course} reserve={reserve} setReserve={setReserve} openEnroll={openEnroll} />
         </div>
       </div>
     </section>
   );
 }
 
-function ReservePanel({ course, reserve, setReserve, openEnroll, openLogin }) {
+function ReservePanel({ course, reserve, setReserve, openEnroll }) {
+  const reserveCountryOptionsId = 'reserve-country-options';
+  const reserveCityOptionsId = 'reserve-city-options';
+  const reserveCityOptions = cityOptionsFor(reserve.country);
+  const updateReserveCountry = (country) => {
+    setReserve((current) => ({
+      ...current,
+      country,
+      city: defaultCityFor(country, current.city),
+      phoneNumber: phoneWithCountryCode(current.phoneNumber, country, current.country),
+    }));
+  };
+
   return (
     <motion.aside className="fx-reserve-panel" initial={{ opacity: 0, y: 34 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.55 }}>
       <div className="fx-panel-shine" />
@@ -655,20 +809,43 @@ function ReservePanel({ course, reserve, setReserve, openEnroll, openLogin }) {
         </label>
         <label>
           <span>{tr('email')}</span>
-          <input value={reserve.email} onChange={(e) => setReserve({ ...reserve, email: e.target.value })} placeholder={tr('email')} type="email" />
+          <input id="reserve-email" value={reserve.email} onChange={(e) => setReserve({ ...reserve, email: e.target.value })} placeholder={tr('email')} type="email" />
         </label>
+        <div className="fx-form-pair">
+          <label className="fx-combo-field">
+            <span>{tr('country')}</span>
+            <input
+              value={reserve.country}
+              onChange={(e) => updateReserveCountry(e.target.value)}
+              placeholder={tr('country')}
+              list={reserveCountryOptionsId}
+              autoComplete="country-name"
+            />
+            <ChevronDown className="fx-combo-indicator" size={15} />
+          </label>
+          <label className="fx-combo-field">
+            <span>{tr('city')}</span>
+            <input
+              value={reserve.city}
+              onChange={(e) => setReserve({ ...reserve, city: e.target.value })}
+              placeholder={tr('city')}
+              list={reserveCityOptionsId}
+              autoComplete="address-level2"
+            />
+            <ChevronDown className="fx-combo-indicator" size={15} />
+          </label>
+        </div>
         <label>
           <span>{tr('phone')}</span>
-          <input value={reserve.phoneNumber} onChange={(e) => setReserve({ ...reserve, phoneNumber: e.target.value })} placeholder={tr('phone')} type="tel" />
+          <input id="reserve-phone" value={reserve.phoneNumber} onChange={(e) => setReserve({ ...reserve, phoneNumber: e.target.value })} placeholder={tr('phone')} type="tel" inputMode="tel" />
         </label>
       </div>
-      <div className="fx-payment-card">
-        <div>
-          <strong>{tr('payTitle')}</strong>
-          <span>{tr('payCopy')}</span>
-        </div>
-        <b>stripe</b>
-      </div>
+      <datalist id={reserveCountryOptionsId}>
+        {locationOptions.map((option) => <option key={option.country[0]} value={countryName(option)} />)}
+      </datalist>
+      <datalist id={reserveCityOptionsId}>
+        {reserveCityOptions.map((city) => <option key={city} value={city} />)}
+      </datalist>
       <div className="fx-price-row">
         <span>{tr('price')}</span>
         <strong>{course?.priceText || '$200'}</strong>
@@ -676,40 +853,11 @@ function ReservePanel({ course, reserve, setReserve, openEnroll, openLogin }) {
       <MagneticButton className="w-full" onClick={openEnroll}>
         {tr('primaryCta')} <Rocket size={18} />
       </MagneticButton>
-      <button className="fx-subtle-login" type="button" onClick={openLogin}>
-        {tr('navAccount')} <span>{tr('navLogin')}</span>
-      </button>
-      <div className="fx-safe-line"><LockKeyhole size={15} /> {tr('safe')}</div>
     </motion.aside>
   );
 }
 
-function SeatStory({ course }) {
-  const remaining = course?.seatsRemaining ?? 30;
-  const limit = course?.seatLimit || 30;
-  const pct = Math.max(0.08, Math.min(1, (limit - remaining) / limit));
-  return (
-    <section className="fx-section fx-reveal" id="journey">
-      <div className="fx-story-grid">
-        <div className="fx-section-copy">
-          <span className="fx-kicker"><Zap size={16} /> {tr('storyKicker')}</span>
-          <h2>{tr('storyTitle')}</h2>
-          <p>{tr('storyCopy')}</p>
-        </div>
-        <TiltCard className="fx-seat-card">
-          <span>{tr('seatTitle')}</span>
-          <strong>{remaining}</strong>
-          <p>{tr('seatCopy')}</p>
-          <div className="fx-seat-meter"><span className="fx-progress-bar" style={{ '--progress': pct }} /></div>
-        </TiltCard>
-      </div>
-    </section>
-  );
-}
-
 function CreationShowcase() {
-  const shouldReduceMotion = useReducedMotion();
-
   const renderCreationCard = (item, keySuffix) => (
     <TiltCard key={`${item.title[0]}-${keySuffix}`} className="fx-creation-card">
       <h3>{item.title[isArabic ? 1 : 0]}</h3>
@@ -731,13 +879,10 @@ function CreationShowcase() {
         <h2>{tr('creationTitle')}</h2>
       </div>
       <div className="fx-showcase-frame">
-        <div className={`fx-horizontal-showcase fx-reveal ${shouldReduceMotion ? 'is-static' : ''}`} aria-label={tr('creationTitle')}>
+        <div className="fx-horizontal-showcase fx-reveal" aria-label={tr('creationTitle')}>
           <div className="fx-showcase-track">
             <div className="fx-showcase-set">
-              {creationItems.map((item) => renderCreationCard(item, 'primary'))}
-            </div>
-            <div className="fx-showcase-set" aria-hidden="true">
-              {creationItems.map((item) => renderCreationCard(item, 'duplicate'))}
+              {creationItems.map((item, itemIndex) => renderCreationCard(item, itemIndex))}
             </div>
           </div>
         </div>
@@ -849,11 +994,15 @@ function StatsAndTestimonials() {
       <div className="fx-testimonials">
         <h2>{tr('testimonialsTitle')}</h2>
         <div className="fx-marquee">
-          {[...testimonials, ...testimonials].map((item, index) => (
-            <article key={`${item[0]}-${index}`}>
-              <span className="fx-avatar">{String.fromCharCode(65 + (index % 5))}</span>
-              <p>{item[isArabic ? 1 : 0]}</p>
-            </article>
+          {[0, 1].map((setIndex) => (
+            <div className="fx-marquee-set" aria-hidden={setIndex === 1 ? 'true' : undefined} key={`testimonial-set-${setIndex}`}>
+              {testimonialLoopItems.map((item, index) => (
+                <article key={`${item[0]}-${setIndex}-${index}`}>
+                  <span className="fx-avatar">{String.fromCharCode(65 + (index % 5))}</span>
+                  <p>{item[isArabic ? 1 : 0]}</p>
+                </article>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -913,30 +1062,51 @@ function FinalCta({ openEnroll }) {
 }
 
 function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
+    ...defaultLocation(),
     fullName: '',
     email: '',
     confirmEmail: '',
-    phoneNumber: '',
     password: '',
     addressLine: '',
-    country: 'United Arab Emirates',
-    city: 'Dubai',
     company: '',
-  });
+  }));
   const [status, setStatus] = useState('');
   const [kind, setKind] = useState('');
   const [loading, setLoading] = useState(false);
+  const modalCountryOptionsId = 'enrollment-country-options';
+  const modalCityOptionsId = 'enrollment-city-options';
+  const modalCityOptions = cityOptionsFor(form.country);
+  const updateFormCountry = (country) => {
+    setForm((current) => ({
+      ...current,
+      country,
+      city: defaultCityFor(country, current.city),
+      phoneNumber: phoneWithCountryCode(current.phoneNumber, country, current.country),
+    }));
+  };
+  const updateFormField = (name, value) => {
+    if (name === 'country') {
+      updateFormCountry(value);
+      return;
+    }
+    setForm((current) => ({ ...current, [name]: value }));
+  };
 
   useEffect(() => {
     if (!open) return;
-    setForm((current) => ({
-      ...current,
-      fullName: reserve.fullName || current.fullName,
-      email: reserve.email || current.email,
-      confirmEmail: reserve.email || current.confirmEmail,
-      phoneNumber: reserve.phoneNumber || current.phoneNumber,
-    }));
+    setForm((current) => {
+      const country = reserve.country || current.country;
+      return {
+        ...current,
+        fullName: reserve.fullName || current.fullName,
+        email: reserve.email || current.email,
+        confirmEmail: reserve.email || current.confirmEmail,
+        country,
+        city: reserve.city || current.city || defaultCityFor(country, ''),
+        phoneNumber: reserve.phoneNumber || phoneWithCountryCode(current.phoneNumber, country, current.country),
+      };
+    });
     setStatus(tr('modalCopy'));
     setKind('');
   }, [open, reserve]);
@@ -1006,16 +1176,27 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
                 ['city', tr('city'), 'text'],
                 ['company', tr('company'), 'text'],
               ].map(([name, label, type]) => (
-                <label key={name} className={name === 'fullName' || name === 'addressLine' || name === 'company' ? 'is-wide' : ''}>
+                <label key={name} className={`${name === 'fullName' || name === 'addressLine' || name === 'company' ? 'is-wide' : ''} ${name === 'country' || name === 'city' ? 'fx-combo-field' : ''}`}>
                   <span>{label}</span>
                   <input
+                    id={name === 'email' ? 'enrollment-email' : name === 'confirmEmail' ? 'enrollment-email-confirm' : name === 'phoneNumber' ? 'enrollment-phone' : undefined}
                     value={form[name]}
                     type={type}
+                    list={name === 'country' ? modalCountryOptionsId : name === 'city' ? modalCityOptionsId : undefined}
+                    autoComplete={name === 'country' ? 'country-name' : name === 'city' ? 'address-level2' : undefined}
+                    inputMode={name === 'phoneNumber' ? 'tel' : undefined}
                     placeholder={name === 'password' ? tr('passwordHint') : label}
-                    onChange={(event) => setForm({ ...form, [name]: event.target.value })}
+                    onChange={(event) => updateFormField(name, event.target.value)}
                   />
+                  {(name === 'country' || name === 'city') && <ChevronDown className="fx-combo-indicator" size={15} />}
                 </label>
               ))}
+              <datalist id={modalCountryOptionsId}>
+                {locationOptions.map((option) => <option key={option.country[0]} value={countryName(option)} />)}
+              </datalist>
+              <datalist id={modalCityOptionsId}>
+                {modalCityOptions.map((city) => <option key={city} value={city} />)}
+              </datalist>
               <div className={`fx-status-box ${kind ? `is-${kind}` : ''}`}>{status}</div>
               <div className="fx-modal-actions">
                 <MagneticButton type="submit" disabled={loading}>{loading ? tr('saving') : tr('continueStripe')}</MagneticButton>
@@ -1107,7 +1288,7 @@ function LoginModal({ open, onClose, onLoggedIn }) {
 function App() {
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
-  const [reserve, setReserve] = useState({ fullName: '', email: '', phoneNumber: '' });
+  const [reserve, setReserve] = useState(() => ({ fullName: '', email: '', ...defaultLocation() }));
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [dashboard, setDashboard] = useState(null);
@@ -1162,13 +1343,8 @@ function App() {
       <ThreeBackground />
       <Header onLogin={() => setLoginOpen(true)} />
       <main>
-        <Hero course={course} reserve={reserve} setReserve={setReserve} openEnroll={openEnroll} openLogin={() => setLoginOpen(true)} />
+        <Hero course={course} reserve={reserve} setReserve={setReserve} openEnroll={openEnroll} />
         {loadingCourses && <div className="fx-loading-skeleton" aria-hidden="true"><span /><span /><span /></div>}
-        <SeatStory course={course} />
-        <CreationShowcase />
-        <Modules />
-        <Trainer />
-        <StatsAndTestimonials />
         <StudentDashboard dashboard={dashboard} onLogout={logout} />
         <FinalCta openEnroll={openEnroll} />
       </main>
