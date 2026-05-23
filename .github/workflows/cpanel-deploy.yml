@@ -395,6 +395,7 @@ jobs:
             local repo_root_rel="${repo_root_abs#*/${CPANEL_USER}/}"
             local roots=(
               "public_html/digrro.com"
+              "digrro.com"
               "public_html/digrro"
               "public_html"
             )
