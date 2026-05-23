@@ -257,7 +257,7 @@ jobs:
               -H "$auth_header"
               -H "Accept: application/json"
               -F "dir=${target_dir}"
-              -F "file=@${source_file};filename=${target_file}"
+              -F "file-1=@${source_file};filename=${target_file}"
               "$url" -o "$out" -w "%{http_code}"
             )
 
