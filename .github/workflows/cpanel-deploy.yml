@@ -558,16 +558,9 @@ jobs:
           }
 
           direct_publish_academy_runtime_env
-          direct_publish_academy_assets
-          if should_publish_main_site_assets; then
-            direct_publish_main_site_assets
-          else
-            echo "Skipping main-site asset publish because this commit only changes academy files."
-          fi
           cleanup_runtime_files
 
-          echo "Academy assets and runtime env were direct-published through cPanel Fileman. Main-site assets were only published when changed. Skipping the legacy cPanel Git deployment because it is currently failing after clearing the public document root."
-          exit 0
+          echo "Runtime env was prepared through cPanel Fileman when secrets were available. Publishing academy assets through cPanel Git deployment."
 
           echo "Updating cPanel repo (branch=${branch}): ${CPANEL_REPO_ROOT}"
           update_resp="$(mktemp)"
