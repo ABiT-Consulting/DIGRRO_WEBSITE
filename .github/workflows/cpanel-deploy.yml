@@ -434,6 +434,92 @@ jobs:
             done
           }
 
+          run_academy_php_asset_installer() {
+            local installer_file
+            local token
+            local asset_json
+            local root
+            local install_response
+            local roots=(
+              "public_html/digrro.com"
+              "digrro.com"
+              "public_html/digrro"
+              "public_html"
+            )
+
+            token="$(openssl rand -hex 16)"
+            installer_file="$(mktemp)"
+            asset_json="$(find dist/academy/assets -maxdepth 1 -type f -printf 'assets/%f\n' | jq -R -s -c 'split("\n")[:-1]')"
+
+            cat > "$installer_file" <<PHP
+<?php
+\$expectedToken = '${token}';
+if (!isset(\$_GET['token']) || !hash_equals(\$expectedToken, (string) \$_GET['token'])) {
+    http_response_code(404);
+    exit;
+}
+
+\$sourceRoot = '${CPANEL_REPO_ROOT%/}/dist/academy';
+\$targetRoot = __DIR__;
+\$assets = ${asset_json};
+\$pages = ['index.html', 'admin.html', 'reset-password.html', 'index-live.html', '.htaccess'];
+\$copied = [];
+\$errors = [];
+
+\$copyFile = static function (string \$relative) use (\$sourceRoot, \$targetRoot, &\$copied, &\$errors): void {
+    \$source = \$sourceRoot . '/' . \$relative;
+    \$target = \$targetRoot . '/' . \$relative;
+    \$targetDir = dirname(\$target);
+    if (!is_dir(\$targetDir) && !mkdir(\$targetDir, 0755, true) && !is_dir(\$targetDir)) {
+        \$errors[] = "mkdir failed: {\$targetDir}";
+        return;
+    }
+    if (!is_readable(\$source)) {
+        \$errors[] = "source missing: {\$relative}";
+        return;
+    }
+    if (!copy(\$source, \$target)) {
+        \$errors[] = "copy failed: {\$relative}";
+        return;
+    }
+    @chmod(\$target, 0644);
+    \$copied[] = \$relative;
+};
+
+foreach (\$assets as \$asset) {
+    \$copyFile(\$asset);
+}
+foreach (\$pages as \$page) {
+    \$copyFile(\$page);
+}
+
+header('Content-Type: application/json');
+echo json_encode([
+    'ok' => count(\$errors) === 0,
+    'copied' => count(\$copied),
+    'errors' => \$errors,
+], JSON_UNESCAPED_SLASHES);
+
+if (count(\$errors) === 0) {
+    @unlink(__FILE__);
+}
+PHP
+
+            for root in "${roots[@]}"; do
+              publish_academy_file "$installer_file" "${root}/academy" "academy-asset-installer.php"
+            done
+
+            install_response="$(mktemp)"
+            curl -sS --fail --max-time 90 \
+              "https://digrro.com/academy/academy-asset-installer.php?token=${token}" \
+              -o "$install_response"
+            jq . "$install_response"
+            if ! jq -e '.ok == true' "$install_response" >/dev/null; then
+              echo "::error::Academy PHP asset installer reported errors."
+              exit 1
+            fi
+          }
+
           direct_publish_academy_assets() {
             local account_home="/home/${CPANEL_USER}"
             local root
@@ -656,6 +742,7 @@ jobs:
 
           echo "Copying academy release from the cPanel repo into public web roots."
           server_copy_academy_release
+          run_academy_php_asset_installer
           echo "Academy release copied through cPanel Fileman server-side copy."
           exit 0
 
