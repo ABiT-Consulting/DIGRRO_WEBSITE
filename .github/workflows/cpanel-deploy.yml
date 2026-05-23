@@ -357,15 +357,9 @@ jobs:
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#${account_home}/}"
             local roots=(
-              "${repo_root_abs}"
-              "${repo_root_rel}"
-              "${account_home}/public_html/digrro.com"
               "public_html/digrro.com"
-              "${account_home}/public_html/digrro"
               "public_html/digrro"
-              "${account_home}/public_html"
               "public_html"
-              "digrro.com"
             )
             local asset
             local api_file
@@ -431,15 +425,9 @@ jobs:
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#${account_home}/}"
             local roots=(
-              "${repo_root_abs}"
-              "${repo_root_rel}"
-              "${account_home}/public_html/digrro.com"
               "public_html/digrro.com"
-              "${account_home}/public_html/digrro"
               "public_html/digrro"
-              "${account_home}/public_html"
               "public_html"
-              "digrro.com"
             )
 
             runtime_env_file="$(mktemp)"
@@ -466,15 +454,9 @@ jobs:
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#${account_home}/}"
             local roots=(
-              "${repo_root_abs}"
-              "${repo_root_rel}"
-              "${account_home}/public_html/digrro.com"
               "public_html/digrro.com"
-              "${account_home}/public_html/digrro"
               "public_html/digrro"
-              "${account_home}/public_html"
               "public_html"
-              "digrro.com"
             )
             local root_file
             local asset
