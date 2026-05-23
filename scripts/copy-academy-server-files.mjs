@@ -29,11 +29,29 @@ const rootHtaccessContent = `<IfModule mod_authz_core.c>
   RewriteRule ^(.*)$ academy/$1 [L]
 </IfModule>
 `;
+const academyHtaccessContent = `DirectoryIndex index-live.html index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^$ index-live.html [L]
+  RewriteRule ^index\\.html$ index-live.html [L]
+</IfModule>
+`;
 
 async function main() {
   await mkdir(path.join(distRoot, 'academy', 'api'), { recursive: true });
   await mkdir(path.join(distRoot, 'academy-data'), { recursive: true });
   await writeFile(path.join(distRoot, '.htaccess'), rootHtaccessContent, 'utf8');
+  await cp(
+    path.join(distRoot, 'academy', 'index.html'),
+    path.join(distRoot, 'academy', 'index-live.html'),
+    { force: true },
+  );
+  await writeFile(
+    path.join(distRoot, 'academy', '.htaccess'),
+    academyHtaccessContent,
+    'utf8',
+  );
 
   await cp(path.join(serverRoot, 'api'), path.join(distRoot, 'academy', 'api'), {
     recursive: true,
