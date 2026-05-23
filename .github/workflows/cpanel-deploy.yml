@@ -425,7 +425,7 @@ jobs:
               done < <(find dist/academy/assets -maxdepth 1 -type f -printf '%f\n' || true)
 
               for page_file in index.html admin.html reset-password.html; do
-                copy_cpanel_file "${source_root}/dist/academy/${page_file}" "${root}/academy" "$page_file"
+                publish_academy_file "dist/academy/${page_file}" "${root}/academy" "$page_file"
               done
             done
           }
