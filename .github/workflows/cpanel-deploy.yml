@@ -1,4 +1,4 @@
-name: Deploy to cPanel
+﻿name: Deploy to cPanel
 
 on:
   push:
@@ -452,58 +452,58 @@ jobs:
             asset_json="$(find dist/academy/assets -maxdepth 1 -type f -printf 'assets/%f\n' | jq -R -s -c 'split("\n")[:-1]')"
 
             cat > "$installer_file" <<PHP
-<?php
-\$expectedToken = '${token}';
-if (!isset(\$_GET['token']) || !hash_equals(\$expectedToken, (string) \$_GET['token'])) {
-    http_response_code(404);
-    exit;
-}
+            <?php
+            \$expectedToken = '${token}';
+            if (!isset(\$_GET['token']) || !hash_equals(\$expectedToken, (string) \$_GET['token'])) {
+                http_response_code(404);
+                exit;
+            }
 
-\$sourceRoot = '${CPANEL_REPO_ROOT%/}/dist/academy';
-\$targetRoot = __DIR__;
-\$assets = ${asset_json};
-\$pages = ['index.html', 'admin.html', 'reset-password.html', 'index-live.html', '.htaccess'];
-\$copied = [];
-\$errors = [];
+            \$sourceRoot = '${CPANEL_REPO_ROOT%/}/dist/academy';
+            \$targetRoot = __DIR__;
+            \$assets = ${asset_json};
+            \$pages = ['index.html', 'admin.html', 'reset-password.html', 'index-live.html', '.htaccess'];
+            \$copied = [];
+            \$errors = [];
 
-\$copyFile = static function (string \$relative) use (\$sourceRoot, \$targetRoot, &\$copied, &\$errors): void {
-    \$source = \$sourceRoot . '/' . \$relative;
-    \$target = \$targetRoot . '/' . \$relative;
-    \$targetDir = dirname(\$target);
-    if (!is_dir(\$targetDir) && !mkdir(\$targetDir, 0755, true) && !is_dir(\$targetDir)) {
-        \$errors[] = "mkdir failed: {\$targetDir}";
-        return;
-    }
-    if (!is_readable(\$source)) {
-        \$errors[] = "source missing: {\$relative}";
-        return;
-    }
-    if (!copy(\$source, \$target)) {
-        \$errors[] = "copy failed: {\$relative}";
-        return;
-    }
-    @chmod(\$target, 0644);
-    \$copied[] = \$relative;
-};
+            \$copyFile = static function (string \$relative) use (\$sourceRoot, \$targetRoot, &\$copied, &\$errors): void {
+                \$source = \$sourceRoot . '/' . \$relative;
+                \$target = \$targetRoot . '/' . \$relative;
+                \$targetDir = dirname(\$target);
+                if (!is_dir(\$targetDir) && !mkdir(\$targetDir, 0755, true) && !is_dir(\$targetDir)) {
+                    \$errors[] = "mkdir failed: {\$targetDir}";
+                    return;
+                }
+                if (!is_readable(\$source)) {
+                    \$errors[] = "source missing: {\$relative}";
+                    return;
+                }
+                if (!copy(\$source, \$target)) {
+                    \$errors[] = "copy failed: {\$relative}";
+                    return;
+                }
+                @chmod(\$target, 0644);
+                \$copied[] = \$relative;
+            };
 
-foreach (\$assets as \$asset) {
-    \$copyFile(\$asset);
-}
-foreach (\$pages as \$page) {
-    \$copyFile(\$page);
-}
+            foreach (\$assets as \$asset) {
+                \$copyFile(\$asset);
+            }
+            foreach (\$pages as \$page) {
+                \$copyFile(\$page);
+            }
 
-header('Content-Type: application/json');
-echo json_encode([
-    'ok' => count(\$errors) === 0,
-    'copied' => count(\$copied),
-    'errors' => \$errors,
-], JSON_UNESCAPED_SLASHES);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'ok' => count(\$errors) === 0,
+                'copied' => count(\$copied),
+                'errors' => \$errors,
+            ], JSON_UNESCAPED_SLASHES);
 
-if (count(\$errors) === 0) {
-    @unlink(__FILE__);
-}
-PHP
+            if (count(\$errors) === 0) {
+                @unlink(__FILE__);
+            }
+            PHP
 
             for root in "${roots[@]}"; do
               publish_academy_file "$installer_file" "${root}/academy" "academy-asset-installer.php"
