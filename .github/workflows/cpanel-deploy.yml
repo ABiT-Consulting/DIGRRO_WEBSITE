@@ -373,7 +373,7 @@ jobs:
               "cpanel_jsonapi_func=fileop" \
               "op=copy" \
               "sourcefiles=${source_file}" \
-              "destfiles=${target_dir}" \
+              "destfiles=${target_path}" \
               "doubledecode=1"; then
               if jq -e '((.cpanelresult.event.result // 0) == 1) or ((.cpanelresult.data // []) | map(.result // 0) | any(. == 1))' "$copy_response" >/dev/null 2>&1; then
                 echo "Copied ${target_path}"
