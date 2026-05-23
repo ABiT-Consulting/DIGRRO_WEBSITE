@@ -35,14 +35,9 @@ import { loadCourses } from './lib/courses.js';
 import { initGoogleAnalytics } from './lib/google-analytics.js';
 
 import cinematicPreview from './assets/academy-create-cinematic.mp4';
-import aiImagesPreview from './assets/academy-create-images.png';
-import voicePreview from './assets/academy-create-voiceover.png';
-import adsPreview from './assets/academy-create-social.png';
-import productPreview from './assets/academy-create-product.png';
-import templatesPreview from './assets/academy-create-templates.png';
-import avatarPreview from './assets/academy-create-avatar.png';
 import reelsPreview from './assets/academy-create-reels.mp4';
-import trainerImage from './assets/trainer-tarek-bacha.jpeg';
+import cinematicPoster from './assets/creation-cinematic-video.webp';
+import reelsPoster from './assets/creation-reels-short-videos.webp';
 import academyLogo from './assets/academy-logo.svg';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -62,6 +57,79 @@ const locale = (() => {
   return browserLocales.some((language) => String(language).toLowerCase().startsWith('ar')) ? 'ar' : 'en';
 })();
 const isArabic = locale === 'ar';
+const responsiveImageModules = import.meta.glob('./assets/responsive/*.{jpg,jpeg,png,webp}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+const creationPreviewWidths = [240, 360, 520];
+const trainerPortraitWidths = [240, 480, 768];
+const heroCreationImageSizes = '(max-width: 460px) 122px, (max-width: 780px) 132px, 204px';
+const showcaseCreationImageSizes = '(max-width: 780px) 56vw, 212px';
+const heroTrainerImageSizes = '(max-width: 780px) 88px, 148px';
+const trainerImageSizes = '(max-width: 780px) calc(100vw - 3.8rem), 420px';
+
+function responsiveImage(baseName, widths = creationPreviewWidths) {
+  const sources = widths.map((width) => {
+    const path = `./assets/responsive/${baseName}-${width}w.jpg`;
+    const src = responsiveImageModules[path];
+    if (!src) throw new Error(`Missing responsive image asset: ${path}`);
+    return { src, width };
+  });
+  return {
+    src: sources[sources.length - 1].src,
+    srcSet: sources.map(({ src, width }) => `${src} ${width}w`).join(', '),
+  };
+}
+
+function ResponsiveImage({ image, alt = '', sizes, loading = 'lazy', fetchPriority }) {
+  return (
+    <img
+      src={image.src}
+      srcSet={image.srcSet}
+      sizes={sizes}
+      alt={alt}
+      loading={loading}
+      decoding="async"
+      {...(fetchPriority ? { fetchPriority } : {})}
+    />
+  );
+}
+
+function PreviewVideo({ src, poster, label, loading = 'lazy', preload = 'metadata' }) {
+  const [ready, setReady] = useState(false);
+
+  return (
+    <>
+      {poster && (
+        <img
+          className="fx-video-fallback"
+          src={poster}
+          alt=""
+          loading={loading}
+          decoding="async"
+          aria-hidden="true"
+        />
+      )}
+      <video
+        className={`fx-video-element ${ready ? 'is-ready' : ''}`}
+        src={src}
+        poster={poster}
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload={preload}
+        aria-label={label}
+        onLoadedData={() => setReady(true)}
+        onCanPlay={() => setReady(true)}
+        onPlaying={() => setReady(true)}
+        onError={() => setReady(false)}
+      />
+    </>
+  );
+}
 
 const text = {
   navLogin: ['Log in', 'تسجيل الدخول'],
@@ -286,15 +354,17 @@ function getJson(url, token) {
 }
 
 const creationItems = [
-  { title: ['Campaign templates', 'قوالب حملات'], shortTitle: ['Templates', 'قوالب'], media: templatesPreview, type: 'image', icon: BookOpen },
-  { title: ['Reels & short videos', 'ريلز وفيديوهات قصيرة'], shortTitle: ['Reels', 'ريلز'], media: reelsPreview, type: 'video', icon: CirclePlay },
-  { title: ['AI avatars', 'شخصيات افتراضية'], shortTitle: ['AI avatars', 'شخصيات'], media: avatarPreview, type: 'image', icon: Users },
-  { title: ['Cinematic AI videos', 'فيديوهات سينمائية بالذكاء الاصطناعي'], shortTitle: ['AI videos', 'فيديوهات'], media: cinematicPreview, type: 'video', icon: Film },
-  { title: ['AI image worlds', 'عوالم صور بالذكاء الاصطناعي'], shortTitle: ['AI images', 'صور'], media: aiImagesPreview, type: 'image', icon: Palette },
-  { title: ['Voiceover systems', 'أنظمة تعليق صوتي'], shortTitle: ['Voiceovers', 'تعليق صوتي'], media: voicePreview, type: 'image', icon: Mic2 },
-  { title: ['Product visuals', 'صور منتجات'], shortTitle: ['Products', 'منتجات'], media: productPreview, type: 'image', icon: Sparkles },
-  { title: ['Social ad engines', 'محركات إعلانات اجتماعية'], shortTitle: ['Social ads', 'إعلانات'], media: adsPreview, type: 'image', icon: BarChart3 },
+  { title: ['Campaign templates', 'قوالب حملات'], shortTitle: ['Templates', 'قوالب'], media: responsiveImage('academy-create-templates'), type: 'image', icon: BookOpen },
+  { title: ['Reels & short videos', 'ريلز وفيديوهات قصيرة'], shortTitle: ['Reels', 'ريلز'], media: reelsPreview, poster: reelsPoster, type: 'video', icon: CirclePlay },
+  { title: ['AI avatars', 'شخصيات افتراضية'], shortTitle: ['AI avatars', 'شخصيات'], media: responsiveImage('academy-create-avatar'), type: 'image', icon: Users },
+  { title: ['Cinematic AI videos', 'فيديوهات سينمائية بالذكاء الاصطناعي'], shortTitle: ['AI videos', 'فيديوهات'], media: cinematicPreview, poster: cinematicPoster, type: 'video', icon: Film },
+  { title: ['AI image worlds', 'عوالم صور بالذكاء الاصطناعي'], shortTitle: ['AI images', 'صور'], media: responsiveImage('academy-create-images'), type: 'image', icon: Palette },
+  { title: ['Voiceover systems', 'أنظمة تعليق صوتي'], shortTitle: ['Voiceovers', 'تعليق صوتي'], media: responsiveImage('academy-create-voiceover'), type: 'image', icon: Mic2 },
+  { title: ['Product visuals', 'صور منتجات'], shortTitle: ['Products', 'منتجات'], media: responsiveImage('academy-create-product'), type: 'image', icon: Sparkles },
+  { title: ['Social ad engines', 'محركات إعلانات اجتماعية'], shortTitle: ['Social ads', 'إعلانات'], media: responsiveImage('academy-create-social'), type: 'image', icon: BarChart3 },
 ];
+
+const trainerPortrait = responsiveImage('trainer-tarek-bacha', trainerPortraitWidths);
 
 const modules = [
   {
@@ -700,7 +770,7 @@ function HeroTrainerCard() {
   return (
     <TiltCard className="fx-hero-trainer">
       <div className="fx-hero-trainer-image">
-        <img src={trainerImage} alt="Tarek Bacha" loading="eager" />
+        <ResponsiveImage image={trainerPortrait} alt="Tarek Bacha" sizes={heroTrainerImageSizes} loading="eager" fetchPriority="high" />
       </div>
       <div className="fx-hero-trainer-content">
         <h3>{tr('trainerTitle')} <BadgeCheck size={18} /></h3>
@@ -723,9 +793,15 @@ function HeroCreationPreview() {
       <div className="fx-hero-creation-card" key={`${item.title[0]}-${keySuffix}`}>
         <div className="fx-hero-creation-media">
           {item.type === 'video' ? (
-            <video src={item.media} muted loop playsInline autoPlay preload="metadata" aria-label={item.title[isArabic ? 1 : 0]} />
+            <PreviewVideo
+              src={item.media}
+              poster={item.poster}
+              label={item.title[isArabic ? 1 : 0]}
+              loading="eager"
+              preload="metadata"
+            />
           ) : (
-            <img src={item.media} alt="" loading="eager" decoding="async" />
+            <ResponsiveImage image={item.media} alt="" sizes={heroCreationImageSizes} loading="eager" />
           )}
         </div>
         <span><Icon size={13} />{title}</span>
@@ -734,7 +810,7 @@ function HeroCreationPreview() {
   };
 
   return (
-    <motion.div className="fx-hero-creation" variants={{ hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0 } }}>
+    <div className="fx-hero-creation">
       <div className="fx-hero-creation-head">
         <span>{tr('creationTitle')}</span>
       </div>
@@ -745,7 +821,7 @@ function HeroCreationPreview() {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -875,9 +951,15 @@ function CreationShowcase() {
       <h3>{item.title[isArabic ? 1 : 0]}</h3>
       <div className="fx-creation-media">
         {item.type === 'video' ? (
-          <video src={item.media} muted loop playsInline autoPlay preload="metadata" aria-label={item.title[isArabic ? 1 : 0]} />
+          <PreviewVideo
+            src={item.media}
+            poster={item.poster}
+            label={item.title[isArabic ? 1 : 0]}
+            loading="lazy"
+            preload="none"
+          />
         ) : (
-          <img src={item.media} alt="" loading="lazy" />
+          <ResponsiveImage image={item.media} alt="" sizes={showcaseCreationImageSizes} loading="lazy" />
         )}
         <div className="fx-video-preview"><Play size={18} /></div>
       </div>
@@ -957,7 +1039,7 @@ function Trainer() {
       </div>
       <TiltCard className="fx-trainer-card fx-reveal">
         <div className="fx-trainer-image">
-          <img src={trainerImage} alt="Tarek Bacha" loading="lazy" />
+          <ResponsiveImage image={trainerPortrait} alt="Tarek Bacha" sizes={trainerImageSizes} loading="lazy" />
         </div>
         <div>
           <h3>{tr('trainerTitle')} <BadgeCheck size={20} /></h3>

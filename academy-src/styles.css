@@ -2251,7 +2251,9 @@ body:has(.fx-academy) {
   position: relative;
   overflow: hidden;
   padding-block: 0.05rem 0.35rem;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  transform: translateZ(0);
 }
 
 .fx-hero-creation-track {
@@ -2277,6 +2279,8 @@ body:has(.fx-academy) {
   border-radius: 18px;
   background: rgba(255,255,255,0.045);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .fx-hero-creation-media {
@@ -2285,13 +2289,22 @@ body:has(.fx-academy) {
   aspect-ratio: 2 / 3;
   border-radius: 14px;
   background: rgba(255,255,255,0.05);
+  backface-visibility: hidden;
+  contain: paint;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .fx-hero-creation-media img,
 .fx-hero-creation-media video {
+  display: block;
   width: 100%;
   height: 100%;
+  min-width: 100%;
+  min-height: 100%;
   object-fit: cover;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .fx-hero-creation-card span {
@@ -2935,13 +2948,22 @@ body:has(.fx-academy) {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 14px;
   background: rgba(255,255,255,0.04);
+  backface-visibility: hidden;
+  contain: paint;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .fx-creation-media img,
 .fx-creation-media video {
+  display: block;
   width: 100%;
   height: 100%;
+  min-width: 100%;
+  min-height: 100%;
   object-fit: cover;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .fx-creation-media img,
@@ -2953,6 +2975,26 @@ body:has(.fx-academy) {
 .fx-creation-card:hover .fx-creation-media video {
   transform: scale(1.05);
   filter: saturate(1.14) contrast(1.04);
+}
+
+.fx-video-fallback,
+.fx-video-element {
+  position: absolute;
+  inset: 0;
+}
+
+.fx-video-fallback {
+  z-index: 1;
+}
+
+.fx-video-element {
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.fx-video-element.is-ready {
+  opacity: 1;
 }
 
 .fx-video-preview {
@@ -3461,6 +3503,12 @@ body:has(.fx-academy) {
 .is-rtl .fx-hero-trainer {
   direction: rtl;
   text-align: right;
+}
+
+.is-rtl .fx-hero-trainer-content h3 svg,
+.is-rtl .fx-trainer-card h3 svg {
+  order: -1;
+  flex: 0 0 auto;
 }
 
 .is-rtl .fx-hero-creation {
