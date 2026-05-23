@@ -351,6 +351,85 @@ jobs:
             return 1
           }
 
+          copy_cpanel_file() {
+            local source_file="$1"
+            local target_dir="$2"
+            local target_file="$3"
+            local target_path="${target_dir%/}/${target_file}"
+            local unlink_response
+            local copy_response
+
+            unlink_response="$(mktemp)"
+            cpanel_api2_get "$unlink_response" \
+              "cpanel_jsonapi_module=Fileman" \
+              "cpanel_jsonapi_func=fileop" \
+              "op=unlink" \
+              "sourcefiles=${target_path}" \
+              "doubledecode=1" || true
+
+            copy_response="$(mktemp)"
+            if cpanel_api2_get "$copy_response" \
+              "cpanel_jsonapi_module=Fileman" \
+              "cpanel_jsonapi_func=fileop" \
+              "op=copy" \
+              "sourcefiles=${source_file}" \
+              "destfiles=${target_dir}" \
+              "doubledecode=1"; then
+              if jq -e '((.cpanelresult.event.result // 0) == 1) or ((.cpanelresult.data // []) | map(.result // 0) | any(. == 1))' "$copy_response" >/dev/null 2>&1; then
+                echo "Copied ${target_path}"
+                return 0
+              fi
+              echo "Copy skipped for ${target_path}"
+              jq -c '.cpanelresult.data // .cpanelresult.error // empty' "$copy_response" 2>/dev/null || true
+            else
+              echo "Copy request failed for ${target_path}"
+            fi
+
+            return 1
+          }
+
+          server_copy_academy_release() {
+            local root
+            local source_root
+            local repo_root_abs="${CPANEL_REPO_ROOT%/}"
+            local repo_root_rel="${repo_root_abs#*/${CPANEL_USER}/}"
+            local roots=(
+              "public_html/digrro.com"
+              "public_html/digrro"
+              "public_html"
+            )
+            local api_file
+            local asset
+            local page_file
+
+            source_root="$repo_root_abs"
+            if [[ -n "$repo_root_rel" && "$repo_root_rel" != "$repo_root_abs" ]]; then
+              source_root="$repo_root_rel"
+            fi
+
+            for root in "${roots[@]}"; do
+              if [[ -z "$root" ]]; then
+                continue
+              fi
+
+              ensure_cpanel_dir "$root" "academy"
+              ensure_cpanel_dir "${root}/academy" "api"
+              ensure_cpanel_dir "${root}/academy" "assets"
+
+              while IFS= read -r api_file; do
+                copy_cpanel_file "${source_root}/dist/academy/api/${api_file}" "${root}/academy/api" "$api_file"
+              done < <(find dist/academy/api -maxdepth 1 -type f -printf '%f\n' || true)
+
+              while IFS= read -r asset; do
+                copy_cpanel_file "${source_root}/dist/academy/assets/${asset}" "${root}/academy/assets" "$asset"
+              done < <(find dist/academy/assets -maxdepth 1 -type f -printf '%f\n' || true)
+
+              for page_file in index.html admin.html reset-password.html; do
+                copy_cpanel_file "${source_root}/dist/academy/${page_file}" "${root}/academy" "$page_file"
+              done
+            done
+          }
+
           direct_publish_academy_assets() {
             local account_home="/home/${CPANEL_USER}"
             local root
@@ -570,6 +649,11 @@ jobs:
           jq_ok_or_dump "$update_resp"
           jq . "$update_resp"
           jq_status_or_error "$update_resp" "VersionControl/update"
+
+          echo "Copying academy release from the cPanel repo into public web roots."
+          server_copy_academy_release
+          echo "Academy release copied through cPanel Fileman server-side copy."
+          exit 0
 
           deployable="$(jq -r '(.result // .).data.deployable // 0' "$update_resp")"
           deployable_reason="$(jq -r '(.result // .).data.deployable_reason // empty' "$update_resp")"
