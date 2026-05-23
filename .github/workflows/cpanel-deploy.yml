@@ -393,8 +393,6 @@ jobs:
             local source_root
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#*/${CPANEL_USER}/}"
-            local versioned_index="index-${GITHUB_SHA:0:8}.html"
-            local academy_htaccess
             local roots=(
               "public_html/digrro.com"
               "public_html/digrro"
@@ -430,18 +428,8 @@ jobs:
                 publish_academy_file "dist/academy/${page_file}" "${root}/academy" "$page_file"
               done
 
-              publish_academy_file "dist/academy/index.html" "${root}/academy" "$versioned_index"
-
-              academy_htaccess="$(mktemp)"
-              {
-                printf 'DirectoryIndex %s index.html\n' "$versioned_index"
-                printf '<IfModule mod_rewrite.c>\n'
-                printf '  RewriteEngine On\n'
-                printf '  RewriteRule ^$ %s [L]\n' "$versioned_index"
-                printf '  RewriteRule ^index\\.html$ %s [L]\n' "$versioned_index"
-                printf '</IfModule>\n'
-              } > "$academy_htaccess"
-              publish_academy_file "$academy_htaccess" "${root}/academy" ".htaccess"
+              copy_cpanel_file "${source_root}/dist/academy/index-live.html" "${root}/academy" "index-live.html"
+              copy_cpanel_file "${source_root}/dist/academy/.htaccess" "${root}/academy" ".htaccess"
             done
           }
 

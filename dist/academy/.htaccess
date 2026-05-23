@@ -1,0 +1,7 @@
+DirectoryIndex index-live.html index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^$ index-live.html [L]
+  RewriteRule ^index\.html$ index-live.html [L]
+</IfModule>
