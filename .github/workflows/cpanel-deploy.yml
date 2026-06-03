@@ -440,6 +440,7 @@ jobs:
             local asset_json
             local root
             local install_response
+            local api_json
             local roots=(
               "public_html/digrro.com"
               "digrro.com"
@@ -450,6 +451,7 @@ jobs:
             token="$(openssl rand -hex 16)"
             installer_file="$(mktemp)"
             asset_json="$(find dist/academy/assets -maxdepth 1 -type f -printf 'assets/%f\n' | jq -R -s -c 'split("\n")[:-1]')"
+            api_json="$(find dist/academy/api -maxdepth 1 -type f -printf 'api/%f\n' | jq -R -s -c 'split("\n")[:-1]')"
 
             cat > "$installer_file" <<PHP
           <?php
@@ -462,6 +464,7 @@ jobs:
           \$sourceRoot = '${CPANEL_REPO_ROOT%/}/dist/academy';
           \$targetRoot = __DIR__;
           \$assets = ${asset_json};
+          \$apiFiles = ${api_json};
           \$pages = ['index.html', 'admin.html', 'reset-password.html', 'index-live.html', '.htaccess'];
           \$copied = [];
           \$errors = [];
@@ -488,6 +491,9 @@ jobs:
 
           foreach (\$assets as \$asset) {
               \$copyFile(\$asset);
+          }
+          foreach (\$apiFiles as \$apiFile) {
+              \$copyFile(\$apiFile);
           }
           foreach (\$pages as \$page) {
               \$copyFile(\$page);
