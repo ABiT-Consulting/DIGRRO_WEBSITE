@@ -463,7 +463,7 @@ function academy_checkout_cancel_url(string $planKey): string
 
 function academy_normalize_stripe_checkout_url(string $url): string
 {
-    return preg_replace('#^https://checkout\.stripe\.com/#', 'https://buy.stripe.com/', $url) ?? $url;
+    return trim($url);
 }
 
 function academy_checkout_url_needs_refresh(string $url): bool
@@ -473,7 +473,7 @@ function academy_checkout_url_needs_refresh(string $url): bool
         return true;
     }
 
-    return preg_match('#^https://buy\.stripe\.com/c/pay/cs_(live|test)_#', $url) !== 1;
+    return preg_match('#^https://checkout\.stripe\.com/c/pay/cs_(live|test)_#', $url) !== 1;
 }
 
 function academy_normalize_promo_code(string $value): string
