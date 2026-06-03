@@ -35,6 +35,7 @@ The PHP backend reads these Stripe keys:
 - `ACADEMY_ENV`, `APP_ENV`, or `STRIPE_MODE` to force `development`/`test` or `production`/`live`; otherwise localhost is treated as development and public hosts as production
 - `ACADEMY_STUDENT_TOKEN_SECRET` and `ACADEMY_STUDENT_TOKEN_TTL` for student portal sessions. If the student secret is omitted, `ACADEMY_ADMIN_TOKEN_SECRET` is reused.
 - `ACADEMY_PASSWORD_RESET_TTL` for password reset links, default `3600` seconds.
+- `ACADEMY_PROMO_CODES` for app-managed one-time percentage discounts assigned to specific emails. Use JSON like `[{"code":"VIP50","email":"student@example.com","discountPercent":50}]`. Codes are reserved when checkout starts and marked used after Stripe confirms payment.
 
 The PHP backend reads these runtime keys from `.env` at the deploy root:
 

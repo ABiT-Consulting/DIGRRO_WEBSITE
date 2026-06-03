@@ -186,6 +186,7 @@ const text = {
   country: ['Country', 'الدولة'],
   city: ['City', 'المدينة'],
   company: ['Company (optional)', 'الشركة (اختياري)'],
+  promoCode: ['Promo code (optional)', 'Promo code (optional)'],
   continueStripe: ['Continue to Stripe', 'المتابعة إلى Stripe'],
   cancel: ['Cancel', 'إلغاء'],
   loginInstead: ['Login instead', 'سجل الدخول بدلا من ذلك'],
@@ -1164,6 +1165,7 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
     password: '',
     addressLine: '',
     company: '',
+    promoCode: '',
   }));
   const [status, setStatus] = useState('');
   const [kind, setKind] = useState('');
@@ -1270,8 +1272,9 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
                 ['country', tr('country'), 'text'],
                 ['city', tr('city'), 'text'],
                 ['company', tr('company'), 'text'],
+                ['promoCode', tr('promoCode'), 'text'],
               ].map(([name, label, type]) => (
-                <label key={name} className={`${name === 'fullName' || name === 'addressLine' || name === 'company' ? 'is-wide' : ''} ${name === 'country' || name === 'city' ? 'fx-combo-field' : ''}`}>
+                <label key={name} className={`${name === 'fullName' || name === 'addressLine' || name === 'company' || name === 'promoCode' ? 'is-wide' : ''} ${name === 'country' || name === 'city' ? 'fx-combo-field' : ''}`}>
                   <span>{label}</span>
                   <input
                     id={name === 'email' ? 'enrollment-email' : name === 'confirmEmail' ? 'enrollment-email-confirm' : name === 'phoneNumber' ? 'enrollment-phone' : undefined}
