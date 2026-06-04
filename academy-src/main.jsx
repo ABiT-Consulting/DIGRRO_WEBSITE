@@ -501,11 +501,14 @@ function usePageMotion() {
       });
     });
 
-    gsap.to('.fx-parallax', {
-      yPercent: -10,
-      ease: 'none',
-      scrollTrigger: { trigger: '.fx-hero', start: 'top top', end: 'bottom top', scrub: true },
-    });
+    const parallaxTargets = gsap.utils.toArray('.fx-parallax');
+    if (parallaxTargets.length) {
+      gsap.to(parallaxTargets, {
+        yPercent: -10,
+        ease: 'none',
+        scrollTrigger: { trigger: '.fx-hero', start: 'top top', end: 'bottom top', scrub: true },
+      });
+    }
 
     return () => {
       cancelAnimationFrame(rafId);

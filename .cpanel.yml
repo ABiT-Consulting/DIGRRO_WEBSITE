@@ -9,6 +9,8 @@ deployment:
     - '/bin/mkdir -p "$DEPLOYPATH/academy-data"'
     - '/usr/bin/find "$DEPLOYPATH/academy" -mindepth 1 -maxdepth 1 ! -name ".env.local" -exec /bin/rm -rf {} +'
     - '/bin/cp -a ./dist/academy/. "$DEPLOYPATH/academy/"'
+    - '/bin/mkdir -p "$DEPLOYPATH/academy/api"'
+    - '/bin/cp -a ./academy-server/api/. "$DEPLOYPATH/academy/api/"'
     - 'if [ -d ./dist/academy-data ]; then /bin/cp -a ./dist/academy-data/. "$DEPLOYPATH/academy-data/"; fi'
     - 'if [ -f ./dist/.htaccess ]; then /bin/cp -a ./dist/.htaccess "$DEPLOYPATH/.htaccess"; fi'
     - 'if [ -f ./.env ]; then /bin/cp -a ./.env "$DEPLOYPATH/.env"; elif [ ! -f "$DEPLOYPATH/.env" ]; then echo "WARNING: No .env found in the repository or deploy path. Create $DEPLOYPATH/.env in cPanel for SMTP and runtime settings."; fi'

@@ -476,20 +476,194 @@ function academy_checkout_url_needs_refresh(string $url): bool
     return preg_match('#^https://checkout\.stripe\.com/c/pay/cs_(live|test)_#', $url) !== 1;
 }
 
-function academy_checkout_metadata(array $plan, string $email, string $checkoutReference): array
+function academy_normalize_promo_code(string $value): string
 {
-    return [
+    return strtoupper(trim($value));
+}
+
+function academy_configured_promo_codes(): array
+{
+    $raw = academy_env(['ACADEMY_PROMO_CODES'], '');
+    if (!is_string($raw) || trim($raw) === '') {
+        return [];
+    }
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $codes = [];
+    foreach ($decoded as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+
+        $code = academy_normalize_promo_code((string) ($entry['code'] ?? ''));
+        $discountPercent = (float) ($entry['discountPercent'] ?? $entry['discount_percent'] ?? 0);
+        $allowedEmail = academy_normalize_email((string) ($entry['email'] ?? $entry['allowedEmail'] ?? $entry['allowed_email'] ?? ''));
+        if ($code === '' || $allowedEmail === '' || $discountPercent <= 0 || $discountPercent >= 100) {
+            continue;
+        }
+
+        $codes[] = [
+            'code' => $code,
+            'discount_percent' => $discountPercent,
+            'allowed_email_normalized' => $allowedEmail,
+            'description' => trim((string) ($entry['description'] ?? '')),
+        ];
+    }
+
+    return $codes;
+}
+
+function academy_seed_promo_codes(PDO $pdo): void
+{
+    $codes = academy_configured_promo_codes();
+    if ($codes === []) {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO academy_promo_codes (code, discount_percent, allowed_email_normalized, description, is_active)
+         VALUES (:code, :discount_percent, :allowed_email_normalized, :description, 1)
+         ON CONFLICT(code) DO UPDATE SET
+             discount_percent = excluded.discount_percent,
+             allowed_email_normalized = excluded.allowed_email_normalized,
+             description = excluded.description,
+             is_active = 1,
+             updated_at = CURRENT_TIMESTAMP'
+    );
+
+    foreach ($codes as $code) {
+        $statement->execute($code);
+    }
+}
+
+function academy_reserve_promo_code(PDO $pdo, string $code, string $email, string $checkoutReference): ?array
+{
+    $normalizedCode = academy_normalize_promo_code($code);
+    if ($normalizedCode === '') {
+        return null;
+    }
+
+    $statement = $pdo->prepare('SELECT * FROM academy_promo_codes WHERE code = :code LIMIT 1');
+    $statement->execute(['code' => $normalizedCode]);
+    $promo = $statement->fetch();
+    if (!is_array($promo) || (int) ($promo['is_active'] ?? 0) !== 1) {
+        throw new RuntimeException('Promo code is not valid.');
+    }
+
+    $allowedEmail = academy_normalize_email((string) ($promo['allowed_email_normalized'] ?? ''));
+    if ($allowedEmail !== '' && $allowedEmail !== $email) {
+        throw new RuntimeException('Promo code is not assigned to this email address.');
+    }
+
+    if (!empty($promo['used_at'])) {
+        throw new RuntimeException('Promo code has already been used.');
+    }
+
+    $reservedReference = (string) ($promo['reserved_checkout_reference'] ?? '');
+    if ($reservedReference !== '' && $reservedReference !== $checkoutReference) {
+        throw new RuntimeException('Promo code has already been reserved.');
+    }
+
+    $update = $pdo->prepare(
+        'UPDATE academy_promo_codes
+         SET reserved_checkout_reference = :checkout_reference,
+             reserved_by_email = :email,
+             reserved_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id
+           AND used_at IS NULL
+           AND (reserved_checkout_reference IS NULL OR reserved_checkout_reference = "" OR reserved_checkout_reference = :checkout_reference)'
+    );
+    $update->execute([
+        'checkout_reference' => $checkoutReference,
+        'email' => $email,
+        'id' => (int) $promo['id'],
+    ]);
+
+    if ($update->rowCount() < 1) {
+        throw new RuntimeException('Promo code has already been reserved.');
+    }
+
+    $promo['code'] = $normalizedCode;
+    $promo['discount_percent'] = max(0, min(99, (float) ($promo['discount_percent'] ?? 0)));
+    return $promo;
+}
+
+function academy_release_promo_reservation(PDO $pdo, string $checkoutReference): void
+{
+    if (trim($checkoutReference) === '') {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'UPDATE academy_promo_codes
+         SET reserved_checkout_reference = NULL,
+             reserved_by_email = NULL,
+             reserved_at = NULL,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE reserved_checkout_reference = :checkout_reference
+           AND used_at IS NULL'
+    );
+    $statement->execute(['checkout_reference' => $checkoutReference]);
+}
+
+function academy_mark_checkout_promo_used(PDO $pdo, string $checkoutReference): void
+{
+    if (trim($checkoutReference) === '') {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'UPDATE academy_promo_codes
+         SET used_at = COALESCE(used_at, CURRENT_TIMESTAMP),
+             used_by_email = COALESCE(used_by_email, reserved_by_email),
+             used_by_enrollment_id = COALESCE(
+                used_by_enrollment_id,
+                (SELECT id FROM academy_enrollments WHERE checkout_reference = :checkout_reference LIMIT 1)
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE reserved_checkout_reference = :checkout_reference
+           AND used_at IS NULL'
+    );
+    $statement->execute(['checkout_reference' => $checkoutReference]);
+}
+
+function academy_discounted_amount_usd(array $plan, ?array $promo): float
+{
+    $amountUsd = (float) ($plan['amountUsd'] ?? 0);
+    if ($promo === null) {
+        return $amountUsd;
+    }
+
+    $discountPercent = max(0, min(100, (float) ($promo['discount_percent'] ?? 0)));
+    return max(0, round($amountUsd * (100 - $discountPercent) / 100, 2));
+}
+
+function academy_checkout_metadata(array $plan, string $email, string $checkoutReference, ?array $promo = null): array
+{
+    $metadata = [
         'academy_system' => 'digrro_academy',
         'academy_plan_key' => (string) $plan['key'],
         'academy_checkout_reference' => $checkoutReference,
         'academy_email' => $email,
     ];
+
+    if ($promo !== null) {
+        $metadata['academy_promo_code'] = (string) ($promo['code'] ?? '');
+        $metadata['academy_promo_discount_percent'] = (string) ($promo['discount_percent'] ?? '');
+    }
+
+    return $metadata;
 }
 
-function academy_create_checkout_session(array $plan, string $email, string $phoneNumber, string $checkoutReference): array
+function academy_create_checkout_session(array $plan, string $email, string $phoneNumber, string $checkoutReference, ?array $promo = null): array
 {
-    $amountCents = (int) round(((float) $plan['amountUsd']) * 100);
-    $metadata = academy_checkout_metadata($plan, $email, $checkoutReference);
+    $amountCents = (int) round(academy_discounted_amount_usd($plan, $promo) * 100);
+    $metadata = academy_checkout_metadata($plan, $email, $checkoutReference, $promo);
 
     return academy_stripe_request('POST', 'checkout/sessions', [
         'mode' => 'payment',
@@ -515,7 +689,7 @@ function academy_create_checkout_session(array $plan, string $email, string $pho
         'payment_intent_data' => [
             'metadata' => $metadata,
         ],
-        'allow_promotion_codes' => 'true',
+        'allow_promotion_codes' => $promo === null ? 'true' : 'false',
         'billing_address_collection' => 'auto',
         'phone_number_collection' => [
             'enabled' => 'true',
@@ -788,6 +962,9 @@ function academy_pdo(): PDO
             plan_key TEXT NOT NULL,
             plan_name TEXT NOT NULL,
             amount_usd REAL NOT NULL,
+            original_amount_usd REAL,
+            promo_code TEXT,
+            promo_discount_percent REAL,
             checkout_url TEXT NOT NULL,
             checkout_reference TEXT NOT NULL UNIQUE,
             stripe_checkout_session_id TEXT,
@@ -805,6 +982,9 @@ function academy_pdo(): PDO
     academy_ensure_table_column($pdo, 'academy_enrollments', 'stripe_payment_intent_id', 'TEXT');
     academy_ensure_table_column($pdo, 'academy_enrollments', 'paid_at', 'TEXT');
     academy_ensure_table_column($pdo, 'academy_enrollments', 'updated_at', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_enrollments', 'original_amount_usd', 'REAL');
+    academy_ensure_table_column($pdo, 'academy_enrollments', 'promo_code', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_enrollments', 'promo_discount_percent', 'REAL');
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS academy_courses (
@@ -846,6 +1026,35 @@ function academy_pdo(): PDO
         )'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS academy_promo_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            discount_percent REAL NOT NULL,
+            allowed_email_normalized TEXT,
+            description TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            reserved_checkout_reference TEXT,
+            reserved_by_email TEXT,
+            reserved_at TEXT,
+            used_at TEXT,
+            used_by_email TEXT,
+            used_by_enrollment_id INTEGER,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )'
+    );
+
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'allowed_email_normalized', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'description', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'reserved_checkout_reference', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'reserved_by_email', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'reserved_at', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'used_at', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'used_by_email', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_promo_codes', 'used_by_enrollment_id', 'INTEGER');
+
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_courses_plan_key_idx ON academy_courses(plan_key)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_email_normalized_idx ON academy_accounts(email_normalized)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_accounts_password_reset_token_idx ON academy_accounts(password_reset_token)');
@@ -853,6 +1062,10 @@ function academy_pdo(): PDO
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_email_idx ON academy_enrollments(email)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_enrollments_checkout_session_idx ON academy_enrollments(stripe_checkout_session_id)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_trainers_email_normalized_idx ON academy_trainers(email_normalized)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_promo_codes_allowed_email_idx ON academy_promo_codes(allowed_email_normalized)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_promo_codes_reserved_reference_idx ON academy_promo_codes(reserved_checkout_reference)');
+
+    academy_seed_promo_codes($pdo);
 
     return $pdo;
 }
@@ -1017,7 +1230,13 @@ function academy_refresh_enrollment_checkout_session(PDO $pdo, array $row, ?arra
             $plan,
             $email,
             (string) ($row['phone_number'] ?? ''),
-            $checkoutReference
+            $checkoutReference,
+            !empty($row['promo_code'])
+                ? [
+                    'code' => (string) $row['promo_code'],
+                    'discount_percent' => (float) ($row['promo_discount_percent'] ?? 0),
+                ]
+                : null
         );
         academy_record_checkout_session($pdo, $checkoutReference, $session);
         $row['checkout_url'] = academy_normalize_stripe_checkout_url((string) ($session['url'] ?? ''));
@@ -1065,6 +1284,10 @@ function academy_apply_checkout_session_to_enrollment(PDO $pdo, array $session):
 
     if ($where === []) {
         return false;
+    }
+
+    if ($isPaid && $checkoutReference !== '') {
+        academy_mark_checkout_promo_used($pdo, $checkoutReference);
     }
 
     $statement = $pdo->prepare(

@@ -32,6 +32,7 @@ $city = trim((string) ($payload['city'] ?? ''));
 $pincode = trim((string) ($payload['pincode'] ?? ''));
 $company = trim((string) ($payload['company'] ?? ''));
 $checkoutReference = trim((string) ($payload['checkoutReference'] ?? ''));
+$promoCode = academy_normalize_promo_code((string) ($payload['promoCode'] ?? $payload['promo_code'] ?? ''));
 $checkoutUrl = '';
 
 if (
@@ -96,6 +97,21 @@ try {
     }
 
     $account = academy_find_account($pdo, $email);
+    $promo = null;
+    if ($promoCode !== '') {
+        try {
+            $promo = academy_reserve_promo_code($pdo, $promoCode, $email, $checkoutReference);
+        } catch (RuntimeException $promoError) {
+            $pdo->rollBack();
+            academy_json_response(400, [
+                'ok' => false,
+                'message' => $promoError->getMessage(),
+            ]);
+        }
+    }
+
+    $originalAmountUsd = (float) $plan['amountUsd'];
+    $amountUsd = academy_discounted_amount_usd($plan, $promo);
     $shouldSendConfirmation = false;
     $confirmationToken = null;
     $accountId = null;
@@ -206,6 +222,9 @@ try {
             plan_key,
             plan_name,
             amount_usd,
+            original_amount_usd,
+            promo_code,
+            promo_discount_percent,
             checkout_url,
             checkout_reference
         ) VALUES (
@@ -221,6 +240,9 @@ try {
             :plan_key,
             :plan_name,
             :amount_usd,
+            :original_amount_usd,
+            :promo_code,
+            :promo_discount_percent,
             :checkout_url,
             :checkout_reference
         )'
@@ -238,7 +260,10 @@ try {
         'company' => $company !== '' ? $company : null,
         'plan_key' => $plan['key'],
         'plan_name' => $plan['label'],
-        'amount_usd' => $plan['amountUsd'],
+        'amount_usd' => $amountUsd,
+        'original_amount_usd' => $originalAmountUsd,
+        'promo_code' => $promo !== null ? (string) $promo['code'] : null,
+        'promo_discount_percent' => $promo !== null ? (float) $promo['discount_percent'] : null,
         'checkout_url' => $checkoutUrl,
         'checkout_reference' => $checkoutReference,
     ]);
@@ -255,10 +280,22 @@ try {
     $pdo->commit();
 
     try {
-        $checkoutSession = academy_create_checkout_session($plan, $email, $phoneNumber, $checkoutReference);
+        $checkoutSession = academy_create_checkout_session($plan, $email, $phoneNumber, $checkoutReference, $promo);
         academy_record_checkout_session($pdo, $checkoutReference, $checkoutSession);
         $checkoutUrl = academy_normalize_stripe_checkout_url((string) $checkoutSession['url']);
     } catch (Throwable $stripeError) {
+        academy_release_promo_reservation($pdo, $checkoutReference);
+        if ($promo !== null) {
+            $clearPromo = $pdo->prepare(
+                'UPDATE academy_enrollments
+                 SET amount_usd = COALESCE(original_amount_usd, amount_usd),
+                     promo_code = NULL,
+                     promo_discount_percent = NULL,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE checkout_reference = :checkout_reference'
+            );
+            $clearPromo->execute(['checkout_reference' => $checkoutReference]);
+        }
         academy_json_response(502, [
             'ok' => false,
             'message' => 'Your registration was saved, but Stripe checkout could not be started. Please try again in a moment.'
