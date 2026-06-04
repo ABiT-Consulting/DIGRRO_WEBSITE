@@ -27,7 +27,7 @@ const rootHtaccessContent = `<IfModule mod_authz_core.c>
   RewriteCond %{HTTP_HOST} ^academy\\.digrro\\.com$ [NC]
   RewriteCond %{REQUEST_URI} !^/academy(/|$) [NC]
   RewriteRule ^(.*)$ academy/$1 [L]
-  
+
   # Allow direct access to PHP API files
   RewriteCond %{REQUEST_URI} ^/academy/api/.*\\.php$ [NC]
   RewriteRule ^(.*)$ - [L]
@@ -41,7 +41,7 @@ const academyHtaccessContent = `DirectoryIndex index-live.html index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{REQUEST_URI} !^/academy/api/ [NC]
-  
+
   RewriteRule ^$ index-live.html [L]
   RewriteRule ^index\\.html$ index-live.html [L]
 </IfModule>

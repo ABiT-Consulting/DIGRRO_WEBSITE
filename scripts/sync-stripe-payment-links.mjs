@@ -97,7 +97,7 @@ function inferStripeMode(secretKey) {
   return 'unknown';
 }
 
-function inferRequestedStripeMode(localEnv, academyBaseUrl) {
+function explicitRequestedStripeMode(localEnv) {
   const modeArg = process.argv.find((arg) => arg.startsWith('--mode='));
   const requestedMode = modeArg ? modeArg.slice('--mode='.length).toLowerCase().trim() : '';
   if (['production', 'prod', 'live'].includes(requestedMode)) {
@@ -115,6 +115,29 @@ function inferRequestedStripeMode(localEnv, academyBaseUrl) {
 
   if (['development', 'dev', 'local', 'test', 'testing'].includes(configured)) {
     return 'test';
+  }
+
+  return '';
+}
+
+function defaultAcademyBaseUrl(localEnv) {
+  const configuredBaseUrl = trimTrailingSlash(pickEnv(localEnv, 'FRONTEND_URL', 'ACADEMY_BASE_URL', 'VITE_ACADEMY_BASE_URL'));
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (explicitRequestedStripeMode(localEnv) === 'live') {
+    return 'https://digrro.com/academy';
+  }
+
+  const devPort = pickEnv(localEnv, 'VITE_DEV_PORT') || '5174';
+  return `http://127.0.0.1:${devPort}`;
+}
+
+function inferRequestedStripeMode(localEnv, academyBaseUrl) {
+  const explicitMode = explicitRequestedStripeMode(localEnv);
+  if (explicitMode) {
+    return explicitMode;
   }
 
   return isLocalhostUrl(academyBaseUrl) ? 'test' : 'live';
@@ -416,11 +439,7 @@ function toModuleFile(config) {
 
 async function main() {
   const localEnv = await loadLocalEnvFiles();
-  const academyBaseUrl = trimTrailingSlash(pickEnv(localEnv, 'FRONTEND_URL', 'ACADEMY_BASE_URL', 'VITE_ACADEMY_BASE_URL'));
-
-  if (!academyBaseUrl) {
-    throw new Error('FRONTEND_URL is required for Stripe payment link metadata.');
-  }
+  const academyBaseUrl = defaultAcademyBaseUrl(localEnv);
 
   const requestedMode = inferRequestedStripeMode(localEnv, academyBaseUrl);
   if (process.argv.includes('--runtime-only')) {

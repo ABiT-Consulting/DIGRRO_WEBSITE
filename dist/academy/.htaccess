@@ -2,6 +2,16 @@ DirectoryIndex index-live.html index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  # Don't rewrite API requests or existing files/directories
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/academy/api/ [NC]
+
   RewriteRule ^$ index-live.html [L]
   RewriteRule ^index\.html$ index-live.html [L]
 </IfModule>
+
+# Ensure PHP files are served correctly
+<FilesMatch \.php$>
+  Allow from all
+</FilesMatch>
