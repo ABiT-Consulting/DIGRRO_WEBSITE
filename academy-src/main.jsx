@@ -46,7 +46,9 @@ const REGISTER_API = './api/register.php';
 const LOGIN_API = './api/login.php';
 const STUDENT_API = './api/student.php';
 const REQUEST_PASSWORD_RESET_API = './api/request-password-reset.php';
+const TRACK_API = './api/track.php';
 const STUDENT_TOKEN_KEY = 'digrro_academy_student_token';
+const TRACKING_SESSION_KEY = 'digrro_academy_tracking_session';
 
 const locale = (() => {
   const requested = new URLSearchParams(window.location.search).get('lang');
@@ -324,6 +326,35 @@ function api(path) {
 function ref() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return 'academy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+function trackingSessionId() {
+  try {
+    const existing = localStorage.getItem(TRACKING_SESSION_KEY);
+    if (existing) return existing;
+    const next = ref();
+    localStorage.setItem(TRACKING_SESSION_KEY, next);
+    return next;
+  } catch {
+    return ref();
+  }
+}
+
+function trackAcademyEvent(eventName, metadata = {}) {
+  const payload = {
+    eventName,
+    sessionId: trackingSessionId(),
+    pagePath: `${window.location.pathname}${window.location.search}`,
+    referrer: document.referrer || '',
+    metadata,
+  };
+
+  fetch(api(TRACK_API), {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function postJson(url, body) {
@@ -855,7 +886,7 @@ function Hero({ course, reserve, setReserve, openEnroll }) {
             {tr('heroLede')}
           </motion.p>
           <motion.div className="fx-hero-actions" variants={{ hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0 } }}>
-            <MagneticButton onClick={openEnroll}>
+            <MagneticButton onClick={() => openEnroll('hero_cta')}>
               {tr('primaryCta')} <ArrowRight size={18} />
             </MagneticButton>
           </motion.div>
@@ -942,7 +973,7 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
         <span>{tr('price')}</span>
         <strong>{course?.priceText || '$200'}</strong>
       </div>
-      <MagneticButton className="w-full" onClick={openEnroll}>
+      <MagneticButton className="w-full" onClick={() => openEnroll('reserve_panel')}>
         {tr('primaryCta')} <Rocket size={18} />
       </MagneticButton>
     </motion.aside>
@@ -1152,7 +1183,7 @@ function FinalCta({ openEnroll }) {
       <div className="fx-spotlight" aria-hidden="true" />
       <h2>{tr('finalTitle')}</h2>
       <p>{tr('finalCopy')}</p>
-      <MagneticButton onClick={openEnroll}>
+      <MagneticButton onClick={() => openEnroll('final_cta')}>
         {tr('primaryCta')} <ArrowRight size={18} />
       </MagneticButton>
     </section>
@@ -1229,24 +1260,46 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
       return;
     }
 
+    const checkoutReference = ref();
+    trackAcademyEvent('registration_attempt', {
+      planKey: course?.key || 'sprint',
+      checkoutReference,
+      hasPromoCode: form.promoCode ? 'yes' : 'no',
+    });
     setLoading(true);
     setStatus(tr('saving'));
     setKind('');
     const result = await postJson(api(REGISTER_API), {
       planKey: course?.key || 'sprint',
-      checkoutReference: ref(),
+      checkoutReference,
       ...form,
       email: form.email.trim().toLowerCase(),
       confirmEmail: form.confirmEmail.trim().toLowerCase(),
     });
     setLoading(false);
     if (!result.ok) {
+      trackAcademyEvent('registration_failure', {
+        planKey: course?.key || 'sprint',
+        checkoutReference,
+        message: result.message || 'Registration failed.',
+      });
       setStatus(result.message || 'Registration failed.');
       setKind('error');
       return;
     }
+    trackAcademyEvent('registration_success', {
+      planKey: course?.key || 'sprint',
+      checkoutReference,
+      hasCheckoutUrl: result.checkoutUrl ? 'yes' : 'no',
+    });
     localStorage.setItem('digrro_academy_email', form.email.trim().toLowerCase());
-    if (result.checkoutUrl) window.location.href = result.checkoutUrl;
+    if (result.checkoutUrl) {
+      trackAcademyEvent('checkout_redirect', {
+        planKey: course?.key || 'sprint',
+        checkoutReference,
+      });
+      window.location.href = result.checkoutUrl;
+    }
     else {
       setStatus(result.message || 'Registration saved.');
       setKind('success');
@@ -1403,6 +1456,7 @@ function App() {
       ? 'أكاديمية دجرو | تدريب صناعة المحتوى والإنتاج الإعلامي بالذكاء الاصطناعي'
       : 'Digrro Academy | AI Content Creation & Media Production Training';
     initGoogleAnalytics();
+    trackAcademyEvent('page_view', { locale });
   }, []);
 
   useEffect(() => {
@@ -1433,7 +1487,13 @@ function App() {
     return loaded;
   }, [courses]);
 
-  const openEnroll = () => setEnrollmentOpen(true);
+  const openEnroll = (source = 'unknown') => {
+    trackAcademyEvent('subscribe_click', {
+      source,
+      planKey: course?.key || 'sprint',
+    });
+    setEnrollmentOpen(true);
+  };
   const logout = () => {
     localStorage.removeItem(STUDENT_TOKEN_KEY);
     setDashboard(null);

@@ -2,12 +2,14 @@ const LOGIN_API = './api/admin-login.php';
 const COURSES_API = './api/admin-courses.php';
 const TRAINERS_API = './api/admin-trainers.php';
 const STUDENTS_API = './api/admin-students.php';
+const ANALYTICS_API = './api/admin-analytics.php';
 const TOKEN_KEY = 'digrro_academy_admin_token';
 const $ = (id) => document.getElementById(id);
 
 let courses = [];
 let trainers = [];
 let students = [];
+let analytics = null;
 let editingCourseId = null;
 let editingTrainerId = null;
 let editingStudentId = null;
@@ -324,6 +326,78 @@ function renderStudents() {
   });
 }
 
+function metricCard(label, value, hint) {
+  return (
+    '<article class="admin-metric-card">' +
+      '<span>' + escapeHtml(label) + '</span>' +
+      '<strong>' + escapeHtml(value) + '</strong>' +
+      (hint ? '<small>' + escapeHtml(hint) + '</small>' : '') +
+    '</article>'
+  );
+}
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function formatMetadata(metadata) {
+  if (!metadata || typeof metadata !== 'object') return '';
+  return Object.entries(metadata)
+    .filter(([, value]) => value !== '')
+    .map(([key, value]) => key + ': ' + value)
+    .join(', ');
+}
+
+function renderAnalytics() {
+  const summaryNode = $('admin-analytics-summary');
+  const dailyNode = $('admin-analytics-daily');
+  const eventsNode = $('admin-analytics-events');
+  const summary = analytics && analytics.summary ? analytics.summary : {};
+  const daily = analytics && Array.isArray(analytics.daily) ? analytics.daily : [];
+  const recentEvents = analytics && Array.isArray(analytics.recentEvents) ? analytics.recentEvents : [];
+  const days = summary.days || 30;
+
+  summaryNode.innerHTML = [
+    metricCard('Visitors', formatNumber(summary.visitors), 'Unique sessions in ' + days + ' days'),
+    metricCard('Page views', formatNumber(summary.pageViews), 'Academy page loads'),
+    metricCard('Subscribe clicks', formatNumber(summary.subscribeClicks), 'Reserve buttons clicked'),
+    metricCard('Registration attempts', formatNumber(summary.registrationAttempts), 'Submitted subscribe form'),
+    metricCard('Successful registrations', formatNumber(summary.registrationSuccesses), 'Saved before checkout'),
+    metricCard('Failed registrations', formatNumber(summary.registrationFailures), 'Rejected or failed attempts'),
+    metricCard('Checkout redirects', formatNumber(summary.checkoutRedirects), 'Sent to Stripe'),
+    metricCard('Subscribers', formatNumber(summary.studentAccounts), 'Student accounts'),
+    metricCard('Enrollments', formatNumber(summary.enrollments), 'Reserved course records'),
+    metricCard('Paid enrollments', formatNumber(summary.paidEnrollments), 'Completed payments'),
+  ].join('');
+
+  dailyNode.innerHTML = daily.length
+    ? '<table class="admin-table"><thead><tr><th>Date</th><th>Visitors</th><th>Views</th><th>Clicks</th><th>Registrations</th></tr></thead><tbody>' +
+      daily.map((row) => (
+        '<tr>' +
+          '<td>' + escapeHtml(row.day) + '</td>' +
+          '<td>' + formatNumber(row.visitors) + '</td>' +
+          '<td>' + formatNumber(row.pageViews) + '</td>' +
+          '<td>' + formatNumber(row.subscribeClicks) + '</td>' +
+          '<td>' + formatNumber(row.successfulRegistrations) + '</td>' +
+        '</tr>'
+      )).join('') +
+      '</tbody></table>'
+    : '<p class="admin-empty">No tracked activity yet.</p>';
+
+  eventsNode.innerHTML = recentEvents.length
+    ? '<table class="admin-table"><thead><tr><th>Time</th><th>Event</th><th>Session</th><th>Details</th></tr></thead><tbody>' +
+      recentEvents.map((event) => (
+        '<tr>' +
+          '<td>' + escapeHtml(event.occurredAt) + '</td>' +
+          '<td>' + escapeHtml(event.eventName) + '</td>' +
+          '<td>' + escapeHtml(event.sessionId) + '</td>' +
+          '<td>' + escapeHtml(formatMetadata(event.metadata)) + '</td>' +
+        '</tr>'
+      )).join('') +
+      '</tbody></table>'
+    : '<p class="admin-empty">No recent events yet.</p>';
+}
+
 async function loadCourses() {
   setStatus($('admin-courses-status'), 'Loading courses...');
   const result = await api('GET', COURSES_API);
@@ -364,8 +438,26 @@ async function loadStudents() {
   renderStudents();
 }
 
+async function loadAnalytics() {
+  setStatus($('admin-analytics-status'), 'Loading analytics...');
+  const result = await api('GET', ANALYTICS_API + '?days=30');
+  if (!result.ok) {
+    if (result.status === 401) { showLogin(); setStatus($('admin-login-status'), 'Session expired. Please log in again.', 'error'); return; }
+    setStatus($('admin-analytics-status'), result.message || 'Could not load analytics.', 'error');
+    return;
+  }
+  analytics = result;
+  const summary = analytics.summary || {};
+  setStatus(
+    $('admin-analytics-status'),
+    formatNumber(summary.visitors) + ' visitor(s), ' + formatNumber(summary.subscribeClicks) + ' subscribe click(s), ' + formatNumber(summary.registrationAttempts) + ' registration attempt(s) in the last ' + (summary.days || 30) + ' days.',
+    'success'
+  );
+  renderAnalytics();
+}
+
 async function loadDashboard() {
-  await Promise.all([loadCourses(), loadTrainers(), loadStudents()]);
+  await Promise.all([loadCourses(), loadTrainers(), loadStudents(), loadAnalytics()]);
 }
 
 async function saveCourse(event) {
@@ -512,6 +604,7 @@ function handleLogout() {
   courses = [];
   trainers = [];
   students = [];
+  analytics = null;
   showLogin();
   setStatus($('admin-login-status'), 'You have been logged out.');
 }
@@ -522,6 +615,7 @@ function init() {
   $('admin-new-course').addEventListener('click', () => openCourseModal(null));
   $('admin-new-trainer').addEventListener('click', () => openTrainerModal(null));
   $('admin-new-student').addEventListener('click', () => openStudentModal(null));
+  $('admin-refresh-analytics').addEventListener('click', loadAnalytics);
   $('course-form').addEventListener('submit', saveCourse);
   $('trainer-form').addEventListener('submit', saveTrainer);
   $('student-form').addEventListener('submit', saveStudent);

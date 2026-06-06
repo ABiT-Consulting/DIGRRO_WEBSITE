@@ -1045,6 +1045,20 @@ function academy_pdo(): PDO
         )'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS academy_analytics_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_name TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            page_path TEXT,
+            referrer TEXT,
+            user_agent TEXT,
+            ip_hash TEXT,
+            metadata_json TEXT NOT NULL DEFAULT "{}",
+            occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )'
+    );
+
     academy_ensure_table_column($pdo, 'academy_promo_codes', 'allowed_email_normalized', 'TEXT');
     academy_ensure_table_column($pdo, 'academy_promo_codes', 'description', 'TEXT');
     academy_ensure_table_column($pdo, 'academy_promo_codes', 'is_active', 'INTEGER NOT NULL DEFAULT 1');
@@ -1064,10 +1078,36 @@ function academy_pdo(): PDO
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_trainers_email_normalized_idx ON academy_trainers(email_normalized)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_promo_codes_allowed_email_idx ON academy_promo_codes(allowed_email_normalized)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS academy_promo_codes_reserved_reference_idx ON academy_promo_codes(reserved_checkout_reference)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_analytics_events_name_idx ON academy_analytics_events(event_name)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_analytics_events_session_idx ON academy_analytics_events(session_id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS academy_analytics_events_occurred_idx ON academy_analytics_events(occurred_at)');
 
     academy_seed_promo_codes($pdo);
 
     return $pdo;
+}
+
+function academy_tracking_client_ip(): string
+{
+    $forwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+    if (is_string($forwardedFor) && trim($forwardedFor) !== '') {
+        $firstIp = trim(explode(',', $forwardedFor)[0] ?? '');
+        if ($firstIp !== '') {
+            return $firstIp;
+        }
+    }
+
+    return trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+}
+
+function academy_tracking_hash_ip(string $ip): string
+{
+    if ($ip === '') {
+        return '';
+    }
+
+    $secret = academy_admin_token_secret() ?: academy_root_path();
+    return hash_hmac('sha256', $ip, $secret);
 }
 
 function academy_find_account(PDO $pdo, string $normalizedEmail): ?array
