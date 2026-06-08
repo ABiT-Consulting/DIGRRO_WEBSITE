@@ -142,6 +142,7 @@ function openCourseModal(course) {
   $('course-checkout-description').value = course ? (course.checkoutDescription || '') : '';
   $('course-learning-url').value = course ? (course.learningUrl || '') : '';
   $('course-is-active').checked = course ? !!course.isActive : true;
+  $('course-student-discount-enabled').checked = course ? course.studentDiscountEnabled !== false : true;
   $('course-form-delete').hidden = !editingCourseId;
   setStatus($('course-form-status'), editingCourseId ? 'Edit and save your changes.' : 'Fill in the course details and save.');
   openModal('course-modal', 'course-plan-key');
@@ -208,6 +209,7 @@ function renderCourses() {
         (course.durationText ? '<span class="plan-flag">' + escapeHtml(course.durationText) + '</span>' : '') +
         (course.audienceText ? '<span class="plan-flag">' + escapeHtml(course.audienceText) + '</span>' : '') +
         (course.teacherName ? '<span class="plan-flag">' + escapeHtml(course.teacherName) + '</span>' : '') +
+        (course.studentDiscountEnabled !== false ? '<span class="plan-flag">.edu discount ' + escapeHtml(String(course.studentDiscountPercent || 10)) + '%</span>' : '') +
       '</div>' +
       '<div class="admin-price">$' + Number(course.amountUsd || 0).toLocaleString() + '</div>' +
       (course.description ? '<p class="admin-card-desc">' + escapeHtml(course.description) + '</p>' : '') +
@@ -478,6 +480,7 @@ async function saveCourse(event) {
     checkoutDescription: $('course-checkout-description').value.trim(),
     learningUrl: $('course-learning-url').value.trim(),
     displayOrder: parseInt($('course-display-order').value || '0', 10) || 0,
+    studentDiscountEnabled: $('course-student-discount-enabled').checked,
     isActive: $('course-is-active').checked
   };
 

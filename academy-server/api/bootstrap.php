@@ -481,6 +481,65 @@ function academy_normalize_promo_code(string $value): string
     return strtoupper(trim($value));
 }
 
+function academy_student_discount_percent(): float
+{
+    $configured = academy_env(['ACADEMY_STUDENT_DISCOUNT_PERCENT'], '10');
+    if (is_string($configured) && is_numeric($configured)) {
+        return max(0, min(99, (float) $configured));
+    }
+
+    return 10.0;
+}
+
+function academy_email_has_edu_domain(string $email): bool
+{
+    $email = academy_normalize_email($email);
+    if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        return false;
+    }
+
+    $domain = strtolower((string) substr(strrchr($email, '@') ?: '', 1));
+    return $domain !== '' && str_ends_with($domain, '.edu');
+}
+
+function academy_course_student_discount_enabled(array $plan): bool
+{
+    return (bool) ($plan['studentDiscountEnabled'] ?? true);
+}
+
+function academy_student_discount_for_plan(array $plan, string $email): ?array
+{
+    if (!academy_course_student_discount_enabled($plan) || !academy_email_has_edu_domain($email)) {
+        return null;
+    }
+
+    $discountPercent = academy_student_discount_percent();
+    if ($discountPercent <= 0) {
+        return null;
+    }
+
+    return [
+        'code' => 'STUDENT-EDU',
+        'discount_percent' => $discountPercent,
+        'description' => 'Automatic student .edu email discount',
+        'is_student_discount' => true,
+    ];
+}
+
+function academy_best_discount(?array $promo, ?array $studentDiscount): ?array
+{
+    if ($promo === null) {
+        return $studentDiscount;
+    }
+    if ($studentDiscount === null) {
+        return $promo;
+    }
+
+    return (float) ($studentDiscount['discount_percent'] ?? 0) > (float) ($promo['discount_percent'] ?? 0)
+        ? $studentDiscount
+        : $promo;
+}
+
 function academy_configured_promo_codes(): array
 {
     $raw = academy_env(['ACADEMY_PROMO_CODES'], '');
@@ -655,6 +714,9 @@ function academy_checkout_metadata(array $plan, string $email, string $checkoutR
     if ($promo !== null) {
         $metadata['academy_promo_code'] = (string) ($promo['code'] ?? '');
         $metadata['academy_promo_discount_percent'] = (string) ($promo['discount_percent'] ?? '');
+        if (!empty($promo['is_student_discount'])) {
+            $metadata['academy_discount_type'] = 'student_edu';
+        }
     }
 
     return $metadata;
@@ -664,6 +726,12 @@ function academy_create_checkout_session(array $plan, string $email, string $pho
 {
     $amountCents = (int) round(academy_discounted_amount_usd($plan, $promo) * 100);
     $metadata = academy_checkout_metadata($plan, $email, $checkoutReference, $promo);
+    $discountDescription = '';
+    if ($promo !== null) {
+        $discountDescription = !empty($promo['is_student_discount'])
+            ? ' Student discount applied: ' . (float) ($promo['discount_percent'] ?? 0) . '% off.'
+            : ' Discount applied: ' . (float) ($promo['discount_percent'] ?? 0) . '% off.';
+    }
 
     return academy_stripe_request('POST', 'checkout/sessions', [
         'mode' => 'payment',
@@ -679,7 +747,7 @@ function academy_create_checkout_session(array $plan, string $email, string $pho
                     'unit_amount' => $amountCents,
                     'product_data' => [
                         'name' => 'Digrro Academy | ' . $plan['label'],
-                        'description' => (string) ($plan['checkoutDescription'] ?? $plan['label']),
+                        'description' => trim((string) ($plan['checkoutDescription'] ?? $plan['label']) . $discountDescription),
                         'metadata' => $metadata,
                     ],
                 ],
@@ -752,8 +820,8 @@ function academy_courses_seed_if_empty(PDO $pdo): void
     }
 
     $insert = $pdo->prepare(
-        'INSERT INTO academy_courses (plan_key, label, amount_usd, duration_text, audience_text, badge, description, features_json, checkout_description, teacher_name, learning_url, display_order, is_active)
-         VALUES (:plan_key, :label, :amount_usd, :duration_text, :audience_text, :badge, :description, :features_json, :checkout_description, :teacher_name, :learning_url, :display_order, 1)'
+        'INSERT INTO academy_courses (plan_key, label, amount_usd, duration_text, audience_text, badge, description, features_json, checkout_description, teacher_name, learning_url, display_order, student_discount_enabled, is_active)
+         VALUES (:plan_key, :label, :amount_usd, :duration_text, :audience_text, :badge, :description, :features_json, :checkout_description, :teacher_name, :learning_url, :display_order, 1, 1)'
     );
     $update = $pdo->prepare(
         'UPDATE academy_courses
@@ -819,6 +887,8 @@ function academy_course_row_to_plan(array $row): array
         'teacherName' => (string) ($row['teacher_name'] ?? ''),
         'learningUrl' => (string) ($row['learning_url'] ?? ''),
         'displayOrder' => (int) ($row['display_order'] ?? 0),
+        'studentDiscountEnabled' => (int) ($row['student_discount_enabled'] ?? 1) === 1,
+        'studentDiscountPercent' => academy_student_discount_percent(),
         'isActive' => (int) ($row['is_active'] ?? 1) === 1,
         'seatLimit' => (int) ($defaultPlan['seatLimit'] ?? 0),
         'checkoutUrl' => academy_checkout_url_for_plan($key)
@@ -1001,6 +1071,7 @@ function academy_pdo(): PDO
             teacher_name TEXT,
             learning_url TEXT,
             display_order INTEGER NOT NULL DEFAULT 0,
+            student_discount_enabled INTEGER NOT NULL DEFAULT 1,
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -1009,6 +1080,7 @@ function academy_pdo(): PDO
 
     academy_ensure_table_column($pdo, 'academy_courses', 'teacher_name', 'TEXT');
     academy_ensure_table_column($pdo, 'academy_courses', 'learning_url', 'TEXT');
+    academy_ensure_table_column($pdo, 'academy_courses', 'student_discount_enabled', 'INTEGER NOT NULL DEFAULT 1');
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS academy_trainers (
@@ -1170,7 +1242,11 @@ function academy_plan_matching_amount(float $amountUsd): ?array
 
 function academy_checkout_plan_for_enrollment(PDO $pdo, array $row, ?array $course): array
 {
-    $amountUsd = (float) ($row['amount_usd'] ?? 0);
+    $discountPercent = (float) ($row['promo_discount_percent'] ?? 0);
+    $originalAmountUsd = (float) ($row['original_amount_usd'] ?? 0);
+    $amountUsd = $discountPercent > 0 && $originalAmountUsd > 0
+        ? $originalAmountUsd
+        : (float) ($row['amount_usd'] ?? 0);
     $plan = $course;
     $changed = false;
     $courseAmountMismatch = $amountUsd > 0
@@ -1275,6 +1351,7 @@ function academy_refresh_enrollment_checkout_session(PDO $pdo, array $row, ?arra
                 ? [
                     'code' => (string) $row['promo_code'],
                     'discount_percent' => (float) ($row['promo_discount_percent'] ?? 0),
+                    'is_student_discount' => (string) $row['promo_code'] === 'STUDENT-EDU',
                 ]
                 : null
         );
@@ -1857,6 +1934,8 @@ function academy_dashboard_course_summary(?array $course, array $row, bool $incl
         'audienceText' => (string) ($course['audienceText'] ?? ''),
         'teacherName' => (string) ($course['teacherName'] ?? ''),
         'description' => (string) ($course['description'] ?? ''),
+        'studentDiscountEnabled' => (bool) ($course['studentDiscountEnabled'] ?? true),
+        'studentDiscountPercent' => academy_student_discount_percent(),
         'features' => array_values(array_map('strval', $features))
     ];
 
@@ -1892,6 +1971,12 @@ function academy_student_dashboard(PDO $pdo, array $account): array
             'planKey' => (string) $row['plan_key'],
             'planName' => (string) $row['plan_name'],
             'amountUsd' => (float) $row['amount_usd'],
+            'originalAmountUsd' => (float) ($row['original_amount_usd'] ?? $row['amount_usd']),
+            'promoCode' => (string) ($row['promo_code'] ?? ''),
+            'promoDiscountPercent' => (float) ($row['promo_discount_percent'] ?? 0),
+            'discountLabel' => !empty($row['promo_code'])
+                ? ((string) $row['promo_code'] === 'STUDENT-EDU' ? 'Student .edu discount' : 'Promo discount')
+                : '',
             'paymentStatus' => (string) $row['payment_status'],
             'academicStatus' => (string) $row['academic_status'],
             'isPaid' => $isPaid,
@@ -1927,8 +2012,8 @@ function academy_student_dashboard(PDO $pdo, array $account): array
 function academy_course_create(PDO $pdo, array $data): array
 {
     $statement = $pdo->prepare(
-        'INSERT INTO academy_courses (plan_key, label, amount_usd, duration_text, audience_text, badge, description, features_json, checkout_description, teacher_name, learning_url, display_order, is_active)
-         VALUES (:plan_key, :label, :amount_usd, :duration_text, :audience_text, :badge, :description, :features_json, :checkout_description, :teacher_name, :learning_url, :display_order, :is_active)'
+        'INSERT INTO academy_courses (plan_key, label, amount_usd, duration_text, audience_text, badge, description, features_json, checkout_description, teacher_name, learning_url, display_order, student_discount_enabled, is_active)
+         VALUES (:plan_key, :label, :amount_usd, :duration_text, :audience_text, :badge, :description, :features_json, :checkout_description, :teacher_name, :learning_url, :display_order, :student_discount_enabled, :is_active)'
     );
     $statement->execute([
         'plan_key' => $data['plan_key'],
@@ -1943,6 +2028,7 @@ function academy_course_create(PDO $pdo, array $data): array
         'teacher_name' => $data['teacher_name'],
         'learning_url' => $data['learning_url'],
         'display_order' => $data['display_order'],
+        'student_discount_enabled' => $data['student_discount_enabled'],
         'is_active' => $data['is_active']
     ]);
     return academy_course_get($pdo, (int) $pdo->lastInsertId());
@@ -1964,6 +2050,7 @@ function academy_course_update(PDO $pdo, int $id, array $data): ?array
             teacher_name = :teacher_name,
             learning_url = :learning_url,
             display_order = :display_order,
+            student_discount_enabled = :student_discount_enabled,
             is_active = :is_active,
             updated_at = CURRENT_TIMESTAMP
          WHERE id = :id'
@@ -1982,6 +2069,7 @@ function academy_course_update(PDO $pdo, int $id, array $data): ?array
         'teacher_name' => $data['teacher_name'],
         'learning_url' => $data['learning_url'],
         'display_order' => $data['display_order'],
+        'student_discount_enabled' => $data['student_discount_enabled'],
         'is_active' => $data['is_active']
     ]);
     return academy_course_get($pdo, $id);
@@ -2027,6 +2115,9 @@ function academy_course_validate_payload(array $payload): array
     $isActive = $payload['isActive'] ?? $payload['is_active'] ?? true;
     $isActiveInt = filter_var($isActive, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     if ($isActiveInt === null) $isActiveInt = true;
+    $studentDiscountEnabled = $payload['studentDiscountEnabled'] ?? $payload['student_discount_enabled'] ?? true;
+    $studentDiscountEnabledInt = filter_var($studentDiscountEnabled, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    if ($studentDiscountEnabledInt === null) $studentDiscountEnabledInt = true;
 
     return [
         'errors' => $errors,
@@ -2043,6 +2134,7 @@ function academy_course_validate_payload(array $payload): array
             'teacher_name' => trim((string) ($payload['teacherName'] ?? $payload['teacher_name'] ?? '')),
             'learning_url' => trim((string) ($payload['learningUrl'] ?? $payload['learning_url'] ?? '')),
             'display_order' => (int) ($payload['displayOrder'] ?? $payload['display_order'] ?? 0),
+            'student_discount_enabled' => $studentDiscountEnabledInt ? 1 : 0,
             'is_active' => $isActiveInt ? 1 : 0
         ]
     ];

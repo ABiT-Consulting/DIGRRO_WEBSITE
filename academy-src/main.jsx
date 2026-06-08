@@ -214,6 +214,13 @@ const text = {
   completePayment: ['Complete Stripe payment', 'أكمل الدفع عبر Stripe'],
 };
 
+Object.assign(text, {
+  studentDiscountOffer: ['Students save with a valid .edu email.', 'Students save with a valid .edu email.'],
+  studentDiscountApplied: ['Student .edu discount applied', 'Student .edu discount applied'],
+  studentDiscountEligible: ['Use a valid university .edu email to unlock the student price.', 'Use a valid university .edu email to unlock the student price.'],
+  studentPrice: ['Student Price', 'Student Price'],
+});
+
 const locationOptions = [
   { country: ['United Arab Emirates', 'الإمارات العربية المتحدة'], dialCode: '+971', cities: [['Dubai', 'دبي'], ['Abu Dhabi', 'أبوظبي'], ['Sharjah', 'الشارقة'], ['Ajman', 'عجمان']] },
   { country: ['Saudi Arabia', 'السعودية'], dialCode: '+966', cities: [['Riyadh', 'الرياض'], ['Jeddah', 'جدة'], ['Dammam', 'الدمام'], ['Makkah', 'مكة']] },
@@ -244,6 +251,35 @@ function tr(key) {
   const value = text[key];
   if (!value) return key;
   return value[isArabic ? 1 : 0];
+}
+
+function formatUsd(value) {
+  const amount = Number(value || 0);
+  return '$' + amount.toLocaleString(undefined, {
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function isEduEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+  return email.slice(email.lastIndexOf('@') + 1).endsWith('.edu');
+}
+
+function studentDiscountPercent(course) {
+  return Number(course?.studentDiscountPercent || 10);
+}
+
+function studentDiscountPrice(course) {
+  if (!course || course.studentDiscountEnabled === false) return null;
+  if (Number(course.studentDiscountAmountUsd) > 0) return Number(course.studentDiscountAmountUsd);
+  const amount = Number(course.amountUsd || 0);
+  return Math.max(0, Math.round(amount * (100 - studentDiscountPercent(course))) / 100);
+}
+
+function studentDiscountOfferText(course) {
+  return `Students save ${studentDiscountPercent(course)}% with a valid .edu email.`;
 }
 
 function loginErrorMessage(message) {
@@ -910,6 +946,9 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
   const reserveCountryOptionsId = 'reserve-country-options';
   const reserveCityOptionsId = 'reserve-city-options';
   const reserveCityOptions = cityOptionsFor(reserve.country);
+  const hasStudentDiscount = course?.studentDiscountEnabled !== false;
+  const discountedPrice = studentDiscountPrice(course);
+  const reserveEduEligible = hasStudentDiscount && isEduEmail(reserve.email);
   const updateReserveCountry = (country) => {
     setReserve((current) => ({
       ...current,
@@ -925,6 +964,12 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
       <ShieldCheck className="fx-reserve-icon" size={34} />
       <h2>{tr('reserveTitle')}</h2>
       <p>{tr('reserveCopy')}</p>
+      {hasStudentDiscount && (
+        <div className="fx-student-discount-banner">
+          <GraduationCap size={17} />
+          <span>{studentDiscountOfferText(course)}</span>
+        </div>
+      )}
       <div className="fx-form-stack">
         <label>
           <span>{tr('fullName')}</span>
@@ -970,9 +1015,21 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
         {reserveCityOptions.map((city) => <option key={city} value={city} />)}
       </datalist>
       <div className="fx-price-row">
-        <span>{tr('price')}</span>
-        <strong>{course?.priceText || '$200'}</strong>
+        <span>{reserveEduEligible ? tr('studentPrice') : tr('price')}</span>
+        <strong>
+          {reserveEduEligible && discountedPrice !== null ? (
+            <>
+              <small>{course?.priceText || formatUsd(course?.amountUsd || 200)}</small>
+              {formatUsd(discountedPrice)}
+            </>
+          ) : (course?.priceText || '$200')}
+        </strong>
       </div>
+      {hasStudentDiscount && (
+        <p className={`fx-discount-note ${reserveEduEligible ? 'is-active' : ''}`}>
+          {reserveEduEligible ? tr('studentDiscountApplied') : tr('studentDiscountEligible')}
+        </p>
+      )}
       <MagneticButton className="w-full" onClick={() => openEnroll('reserve_panel')}>
         {tr('primaryCta')} <Rocket size={18} />
       </MagneticButton>
@@ -1167,6 +1224,15 @@ function StudentDashboard({ dashboard, onLogout }) {
                 <span className="fx-status">{enrollment.isPaid ? tr('ready') : enrollment.paymentStatus}</span>
                 <h3>{isArabic ? 'تدريب صناعة المحتوى والإنتاج الإعلامي بالذكاء الاصطناعي' : (course.label || enrollment.planName)}</h3>
                 <p>{isArabic ? 'وصولك التدريبي مرتبط بهذا الحساب.' : 'Your training access is linked to this account.'}</p>
+                {Number(enrollment.promoDiscountPercent || 0) > 0 && (
+                  <div className="fx-enrollment-discount">
+                    <span>{enrollment.discountLabel || tr('studentDiscountApplied')}</span>
+                    <strong>
+                      <small>{formatUsd(enrollment.originalAmountUsd || enrollment.amountUsd)}</small>
+                      {formatUsd(enrollment.amountUsd)}
+                    </strong>
+                  </div>
+                )}
                 <div>{action}</div>
               </article>
             );
@@ -1207,6 +1273,9 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
   const modalCountryOptionsId = 'enrollment-country-options';
   const modalCityOptionsId = 'enrollment-city-options';
   const modalCityOptions = cityOptionsFor(form.country);
+  const hasStudentDiscount = course?.studentDiscountEnabled !== false;
+  const discountedPrice = studentDiscountPrice(course);
+  const modalEduEligible = hasStudentDiscount && isEduEmail(form.email);
   const updateFormCountry = (country) => {
     setForm((current) => ({
       ...current,
@@ -1317,6 +1386,12 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
             <span className="fx-kicker">{tr('modalKicker')}</span>
             <h2>{isArabic ? 'تدريب صناعة المحتوى والإنتاج الإعلامي بالذكاء الاصطناعي' : course?.label || 'AI Content Creation & Media Production Training'}</h2>
             <p>{tr('modalCopy')}</p>
+            {hasStudentDiscount && (
+              <div className="fx-student-discount-banner is-modal">
+                <GraduationCap size={17} />
+                <span>{modalEduEligible ? tr('studentDiscountApplied') : tr('studentDiscountEligible')}</span>
+              </div>
+            )}
             <form className="fx-modal-form" onSubmit={submit}>
               {[
                 ['fullName', tr('fullName'), 'text'],
@@ -1351,6 +1426,19 @@ function EnrollmentModal({ open, onClose, course, reserve, onDashboard }) {
               <datalist id={modalCityOptionsId}>
                 {modalCityOptions.map((city) => <option key={city} value={city} />)}
               </datalist>
+              {hasStudentDiscount && (
+                <div className="fx-checkout-price-preview">
+                  <span>{modalEduEligible ? tr('studentPrice') : tr('price')}</span>
+                  <strong>
+                    {modalEduEligible && discountedPrice !== null ? (
+                      <>
+                        <small>{course?.priceText || formatUsd(course?.amountUsd || 200)}</small>
+                        {formatUsd(discountedPrice)}
+                      </>
+                    ) : (course?.priceText || '$200')}
+                  </strong>
+                </div>
+              )}
               <div className={`fx-status-box ${kind ? `is-${kind}` : ''}`}>{status}</div>
               <div className="fx-modal-actions">
                 <MagneticButton type="submit" disabled={loading}>{loading ? tr('saving') : tr('continueStripe')}</MagneticButton>
@@ -1480,6 +1568,10 @@ function App() {
         label: 'AI Content Creation & Media Production Training',
         amountUsd: 200,
         priceText: '$200',
+        studentDiscountEnabled: true,
+        studentDiscountPercent: 10,
+        studentDiscountAmountUsd: 180,
+        studentDiscountPriceText: '$180',
         seatLimit: 30,
         seatsRemaining: 30,
       };

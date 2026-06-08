@@ -2809,8 +2809,86 @@ body:has(.fx-academy) {
 }
 
 .fx-price-row strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
   font-size: clamp(1.45rem, 2.2vw, 1.82rem);
   font-weight: 900;
+}
+
+.fx-price-row small,
+.fx-checkout-price-preview small,
+.fx-enrollment-discount small {
+  color: rgba(210, 222, 244, 0.62);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: line-through;
+}
+
+.fx-student-discount-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
+  margin-top: 0.72rem;
+  padding: 0.58rem 0.7rem;
+  border: 1px solid rgba(74, 222, 128, 0.34);
+  border-radius: 12px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #d7ffe2;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.fx-student-discount-banner.is-modal {
+  margin: 0.78rem 0 1rem;
+}
+
+.fx-discount-note {
+  margin: 0 0 0.72rem;
+  color: var(--fx-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.fx-discount-note.is-active {
+  color: #baf7c9;
+}
+
+.fx-checkout-price-preview,
+.fx-enrollment-discount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.fx-checkout-price-preview {
+  grid-column: 1 / -1;
+  padding: 0.72rem 0.82rem;
+}
+
+.fx-checkout-price-preview span,
+.fx-enrollment-discount span {
+  color: var(--fx-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.fx-checkout-price-preview strong,
+.fx-enrollment-discount strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  color: var(--fx-text);
+  font-weight: 950;
+}
+
+.fx-enrollment-discount {
+  margin: 0.72rem 0;
+  padding: 0.62rem 0.72rem;
 }
 
 .fx-reserve-panel .fx-button {
