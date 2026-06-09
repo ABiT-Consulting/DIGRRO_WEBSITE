@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates a scrypt hash for the academy admin password.
+// Generates a portable PBKDF2 hash for the academy admin password.
 // Usage: npm run academy:hash YOUR_PASSWORD
 
 import crypto from 'node:crypto';
@@ -11,8 +11,9 @@ if (!password) {
 }
 
 const salt = crypto.randomBytes(16);
-const derived = crypto.scryptSync(password, salt, 64);
-const hash = 'scrypt:' + salt.toString('hex') + ':' + derived.toString('hex');
+const iterations = 210000;
+const derived = crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha256');
+const hash = 'pbkdf2:sha256:' + iterations + ':' + salt.toString('hex') + ':' + derived.toString('hex');
 
 console.log('');
 console.log('Add this to your .env file:');

@@ -90,7 +90,7 @@ function makePlatformStorage(dataFile) {
   function ensure() {
     if (fs.existsSync(dataFile)) return;
     fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-    fs.writeFileSync(dataFile, JSON.stringify({ accounts: [], enrollments: [], trainers: [] }, null, 2));
+    fs.writeFileSync(dataFile, JSON.stringify({ accounts: [], enrollments: [], trainers: [], analyticsEvents: [] }, null, 2));
   }
   function read() {
     ensure();
@@ -99,17 +99,19 @@ function makePlatformStorage(dataFile) {
       return {
         accounts: Array.isArray(data.accounts) ? data.accounts : [],
         enrollments: Array.isArray(data.enrollments) ? data.enrollments : [],
-        trainers: Array.isArray(data.trainers) ? data.trainers : []
+        trainers: Array.isArray(data.trainers) ? data.trainers : [],
+        analyticsEvents: Array.isArray(data.analyticsEvents) ? data.analyticsEvents : []
       };
     } catch {
-      return { accounts: [], enrollments: [], trainers: [] };
+      return { accounts: [], enrollments: [], trainers: [], analyticsEvents: [] };
     }
   }
   function write(data) {
     fs.writeFileSync(dataFile, JSON.stringify({
       accounts: Array.isArray(data.accounts) ? data.accounts : [],
       enrollments: Array.isArray(data.enrollments) ? data.enrollments : [],
-      trainers: Array.isArray(data.trainers) ? data.trainers : []
+      trainers: Array.isArray(data.trainers) ? data.trainers : [],
+      analyticsEvents: Array.isArray(data.analyticsEvents) ? data.analyticsEvents : []
     }, null, 2));
   }
   function nextId(items) {
@@ -126,6 +128,17 @@ function hashPassword(password) {
 
 function verifyStoredPassword(password, hash) {
   if (!hash || !password) return false;
+  if (hash.startsWith('pbkdf2:')) {
+    const parts = hash.split(':');
+    if (parts.length !== 5) return false;
+    const [, algorithm, iterationsRaw, saltHex, expectedHex] = parts;
+    const iterations = parseInt(iterationsRaw, 10);
+    if (algorithm !== 'sha256' || !Number.isFinite(iterations) || iterations < 10000) return false;
+    const salt = Buffer.from(saltHex, 'hex');
+    const expected = Buffer.from(expectedHex, 'hex');
+    const derived = crypto.pbkdf2Sync(password, salt, iterations, expected.length, 'sha256');
+    return expected.length === derived.length && crypto.timingSafeEqual(expected, derived);
+  }
   if (hash.startsWith('scrypt:')) {
     const parts = hash.split(':');
     if (parts.length !== 3) return false;
@@ -586,6 +599,102 @@ function findValidResetAccount(data, token) {
   return account;
 }
 
+function cleanAnalyticsMetadata(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => String(key).trim() && String(key).length <= 48)
+    .map(([key, item]) => [String(key).trim(), String(item ?? '').slice(0, 240)]));
+}
+
+function analyticsEventCounts(events) {
+  return events.reduce((counts, event) => {
+    const name = event.eventName || '';
+    if (!name) return counts;
+    counts[name] = (counts[name] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function analyticsDaily(events) {
+  const rows = new Map();
+  for (const event of events) {
+    const day = String(event.occurredAt || '').slice(0, 10);
+    if (!day) continue;
+    if (!rows.has(day)) {
+      rows.set(day, {
+        day,
+        events: 0,
+        sessions: new Set(),
+        pageViews: 0,
+        subscribeClicks: 0,
+        successfulRegistrations: 0
+      });
+    }
+    const row = rows.get(day);
+    row.events += 1;
+    if (event.sessionId) row.sessions.add(event.sessionId);
+    if (event.eventName === 'page_view') row.pageViews += 1;
+    if (event.eventName === 'subscribe_click') row.subscribeClicks += 1;
+    if (event.eventName === 'registration_success') row.successfulRegistrations += 1;
+  }
+  return Array.from(rows.values())
+    .sort((a, b) => b.day.localeCompare(a.day))
+    .slice(0, 30)
+    .map((row) => ({
+      day: row.day,
+      events: row.events,
+      visitors: row.sessions.size,
+      pageViews: row.pageViews,
+      subscribeClicks: row.subscribeClicks,
+      successfulRegistrations: row.successfulRegistrations
+    }));
+}
+
+function analyticsResponse(data, days) {
+  const since = Date.now() - days * 24 * 60 * 60 * 1000;
+  const events = data.analyticsEvents
+    .filter((event) => {
+      const timestamp = Date.parse(event.occurredAt || '');
+      return Number.isFinite(timestamp) && timestamp >= since;
+    })
+    .sort((a, b) => Date.parse(b.occurredAt || '') - Date.parse(a.occurredAt || '') || Number(b.id || 0) - Number(a.id || 0));
+  const eventCounts = analyticsEventCounts(events);
+  const visitors = new Set(events.map((event) => event.sessionId).filter(Boolean)).size;
+  const paidEnrollments = data.enrollments.filter((enrollment) =>
+    enrollment.paymentStatus === 'paid' ||
+    enrollment.paymentStatus === 'no_payment_required' ||
+    enrollment.academicStatus === 'payment_received' ||
+    enrollment.paidAt
+  ).length;
+
+  return {
+    ok: true,
+    summary: {
+      days,
+      visitors,
+      pageViews: eventCounts.page_view || 0,
+      subscribeClicks: eventCounts.subscribe_click || 0,
+      registrationAttempts: eventCounts.registration_attempt || 0,
+      registrationSuccesses: eventCounts.registration_success || 0,
+      registrationFailures: eventCounts.registration_failure || 0,
+      checkoutRedirects: eventCounts.checkout_redirect || 0,
+      studentAccounts: data.accounts.length,
+      enrollments: data.enrollments.length,
+      paidEnrollments
+    },
+    eventCounts,
+    daily: analyticsDaily(events),
+    recentEvents: events.slice(0, 80).map((event) => ({
+      eventName: event.eventName || '',
+      sessionId: String(event.sessionId || '').slice(0, 12),
+      pagePath: event.pagePath || '',
+      referrer: event.referrer || '',
+      metadata: event.metadata || {},
+      occurredAt: event.occurredAt || ''
+    }))
+  };
+}
+
 function trainerView(trainer) {
   return {
     id: Number(trainer.id),
@@ -734,6 +843,33 @@ export function academyApiPlugin(opts = {}) {
         });
       }
 
+      // Public academy analytics tracking
+      if (url === '/api/track' || url === '/api/track.php') {
+        if (req.method !== 'POST') return send(res, 405, { ok: false, message: 'Method not allowed.' });
+        const body = await readBody(req);
+        const eventName = String(body.eventName || body.event_name || '').toLowerCase().trim();
+        const sessionId = String(body.sessionId || body.session_id || '').trim();
+        if (!/^[a-z0-9_.:-]{2,64}$/.test(eventName)) {
+          return send(res, 400, { ok: false, message: 'Invalid tracking event.' });
+        }
+        if (!/^[a-zA-Z0-9_.:-]{8,128}$/.test(sessionId)) {
+          return send(res, 400, { ok: false, message: 'Invalid tracking session.' });
+        }
+        const data = platform.read();
+        data.analyticsEvents.push({
+          id: platform.nextId(data.analyticsEvents),
+          eventName,
+          sessionId,
+          pagePath: String(body.pagePath || body.page_path || '').slice(0, 500),
+          referrer: String(body.referrer || '').slice(0, 500),
+          userAgent: String(req.headers['user-agent'] || '').slice(0, 500),
+          metadata: cleanAnalyticsMetadata(body.metadata),
+          occurredAt: new Date().toISOString()
+        });
+        platform.write(data);
+        return send(res, 200, { ok: true });
+      }
+
       // Admin login
       if (url === '/api/admin-login' || url === '/api/admin-login.php') {
         if (req.method !== 'POST') return send(res, 405, { ok: false, message: 'Method not allowed.' });
@@ -756,6 +892,17 @@ export function academyApiPlugin(opts = {}) {
           token: auth.issueToken(email),
           expiresIn: auth.ttl()
         });
+      }
+
+      // Admin analytics (token-protected)
+      if (url === '/api/admin-analytics' || url === '/api/admin-analytics.php') {
+        const tokenPayload = auth.verifyToken(getBearer(req));
+        if (!tokenPayload) return send(res, 401, { ok: false, message: 'Admin authentication required.' });
+        if (req.method !== 'GET') return send(res, 405, { ok: false, message: 'Method not allowed.' });
+        const u = new URL('http://x' + req.url);
+        const parsedDays = parseInt(String(u.searchParams.get('days') || '30'), 10);
+        const days = Math.max(1, Math.min(Number.isFinite(parsedDays) ? parsedDays : 30, 365));
+        return send(res, 200, analyticsResponse(platform.read(), days));
       }
 
       // Admin courses CRUD (token-protected)

@@ -1894,6 +1894,24 @@ function academy_admin_check_credentials(string $email, string $password): bool
     if (!hash_equals($configuredEmail, academy_normalize_admin_identity($email))) {
         return false;
     }
+    if (str_starts_with($configuredHash, 'pbkdf2:')) {
+        $parts = explode(':', $configuredHash);
+        if (count($parts) !== 5) {
+            return false;
+        }
+        [, $algorithm, $iterationsRaw, $saltHex, $expectedHex] = $parts;
+        $iterations = ctype_digit($iterationsRaw) ? (int) $iterationsRaw : 0;
+        if ($algorithm !== 'sha256' || $iterations < 10000 || !ctype_xdigit($saltHex) || !ctype_xdigit($expectedHex)) {
+            return false;
+        }
+        $salt = hex2bin($saltHex);
+        $expected = hex2bin($expectedHex);
+        if ($salt === false || $expected === false) {
+            return false;
+        }
+        $derived = hash_pbkdf2('sha256', $password, $salt, $iterations, strlen($expectedHex), true);
+        return is_string($derived) && hash_equals($expected, $derived);
+    }
     return password_verify($password, $configuredHash);
 }
 

@@ -11,7 +11,7 @@ The academy now uses a static Vite frontend plus a small PHP backend for registr
 5. `api/checkout-complete.php` verifies the returned Checkout Session with Stripe and marks paid enrollments in SQLite.
 6. `academy/api/login.php` and `academy/api/student.php` power the student portal, showing enrollments, payment status, and class/material links after payment.
 7. `academy/api/request-password-reset.php` sends a reset link to the registered login email, and `academy/reset-password.html` lets the student set a new password.
-8. `academy/admin.html` is the trainer portal for adding courses, pricing, and the private class/material URL unlocked for paid students.
+8. `academy/admin.html` is the admin portal for adding courses, trainers, students, private class/material URLs, and academy analytics.
 
 ## Environment handling
 
@@ -36,6 +36,7 @@ The PHP backend reads these Stripe keys:
 - `ACADEMY_STUDENT_TOKEN_SECRET` and `ACADEMY_STUDENT_TOKEN_TTL` for student portal sessions. If the student secret is omitted, `ACADEMY_ADMIN_TOKEN_SECRET` is reused.
 - `ACADEMY_PASSWORD_RESET_TTL` for password reset links, default `3600` seconds.
 - `ACADEMY_PROMO_CODES` for app-managed one-time percentage discounts assigned to specific emails. Use JSON like `[{"code":"VIP50","email":"student@example.com","discountPercent":50}]`. Codes are reserved when checkout starts and marked used after Stripe confirms payment.
+- `ACADEMY_ADMIN_EMAIL`, `ACADEMY_ADMIN_PASSWORD_HASH`, and `ACADEMY_ADMIN_TOKEN_SECRET` for the restricted admin account at `academy/admin.html`. Generate the password hash with `npm run academy:hash YOUR_PASSWORD` and the token secret with `npm run academy:secret`.
 
 The PHP backend reads these runtime keys from `.env` at the deploy root:
 
@@ -76,7 +77,9 @@ GOOGLE_ANALYTICS_ID=G-RH6L7EDCHK
 
 Google Analytics 4 is loaded on the public academy page with the Digrro web stream `G-RH6L7EDCHK`. A deployed `.env` can override it with `GOOGLE_ANALYTICS_ID`; build-time `VITE_GOOGLE_ANALYTICS_ID` also works, and `GA_MEASUREMENT_ID` / `VITE_GA_MEASUREMENT_ID` are accepted aliases.
 
-`npm run academy:dev` uses the Vite local API and stores developer accounts in `academy-data/platform.json`. With `STRIPE_SECRET_KEY_TEST`, local registration creates Stripe test Checkout Sessions. Without a test key, local dev falls back to a mock paid checkout so live credentials are still not used.
+The academy also records first-party analytics through `academy/api/track.php`. The protected `academy/admin.html` analytics tab shows unique visitors, page views, reserve-button clicks, registration attempts, successful registrations, checkout redirects, student accounts, enrollments, paid enrollments, daily activity, and recent events.
+
+`npm run academy:dev` uses the Vite local API and stores developer accounts, enrollments, trainers, and first-party analytics in `academy-data/platform.json`. With `STRIPE_SECRET_KEY_TEST`, local registration creates Stripe test Checkout Sessions. Without a test key, local dev falls back to a mock paid checkout so live credentials are still not used.
 
 `npm run academy:build` writes a runtime-only Stripe config into the build output. It does not call Stripe or bake local test links into the production bundle; the live cPanel `.env.local` supplies `STRIPE_SECRET_KEY_LIVE` at runtime.
 
