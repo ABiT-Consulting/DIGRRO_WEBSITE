@@ -460,6 +460,8 @@ jobs:
             local install_response
             local api_json
             local roots=(
+              "public_html/test.digrro.com"
+              "test.digrro.com"
               "public_html/digrro.com"
               "digrro.com"
               "public_html/digrro"
@@ -550,6 +552,8 @@ jobs:
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#${account_home}/}"
             local roots=(
+              "public_html/test.digrro.com"
+              "test.digrro.com"
               "public_html/digrro.com"
               "public_html/digrro"
               "public_html"
@@ -618,6 +622,8 @@ jobs:
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#${account_home}/}"
             local roots=(
+              "public_html/test.digrro.com"
+              "test.digrro.com"
               "public_html/digrro.com"
               "public_html/digrro"
               "public_html"
@@ -647,6 +653,8 @@ jobs:
             local repo_root_abs="${CPANEL_REPO_ROOT%/}"
             local repo_root_rel="${repo_root_abs#${account_home}/}"
             local roots=(
+              "public_html/test.digrro.com"
+              "test.digrro.com"
               "public_html/digrro.com"
               "public_html/digrro"
               "public_html"
@@ -767,6 +775,7 @@ jobs:
           echo "Copying academy release from the cPanel repo into public web roots."
           server_copy_academy_release
           run_academy_php_asset_installer
+          direct_publish_main_site_assets
           echo "Academy release copied through cPanel Fileman server-side copy."
           exit 0
 
