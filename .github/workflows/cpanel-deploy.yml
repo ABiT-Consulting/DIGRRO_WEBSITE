@@ -600,14 +600,13 @@ jobs:
             local stripe_secret_key="${STRIPE_SECRET_KEY_LIVE:-${STRIPE_SECRET_KEY_FALLBACK:-}}"
             local academy_base_url="${ACADEMY_BASE_URL_SECRET:-https://digrro.com/academy}"
 
-            if [[ -z "${stripe_secret_key}" ]]; then
-              echo "::warning::Skipping academy runtime env publish because STRIPE_SECRET_KEY_LIVE or STRIPE_SECRET_KEY is not configured."
-              return 1
-            fi
-
             {
-              printf 'STRIPE_SECRET_KEY=%s\n' "${stripe_secret_key}"
-              printf 'secret_key=%s\n' "${stripe_secret_key}"
+              if [[ -n "${stripe_secret_key}" ]]; then
+                printf 'STRIPE_SECRET_KEY=%s\n' "${stripe_secret_key}"
+                printf 'secret_key=%s\n' "${stripe_secret_key}"
+              else
+                echo "# Stripe secret was not available to this deploy run."
+              fi
               printf 'ACADEMY_BASE_URL=%s\n' "${academy_base_url}"
               printf 'ACADEMY_ADMIN_USERNAME=admin\n'
               printf 'ACADEMY_ADMIN_PASSWORD_HASH=%s\n' 'pbkdf2:sha256:210000:9e92fc16877c9f38cd25acbb8ff0e0e5:f1a6fefac6481ca2e0407fd5445341c7c62b37f709feedba417064dc3cdd4a617d90fca47f251668774919238efd18334b742c46e5b2bba5e08eed385bdd2bdc'
