@@ -1884,16 +1884,8 @@ function academy_admin_require_authenticated(): array
     return $payload;
 }
 
-function academy_admin_check_credentials(string $email, string $password): bool
+function academy_admin_password_hash_matches(string $configuredHash, string $password): bool
 {
-    $configuredEmail = academy_admin_identity_normalized();
-    $configuredHash = academy_admin_password_hash();
-    if ($configuredEmail === null || $configuredHash === null) {
-        return false;
-    }
-    if (!hash_equals($configuredEmail, academy_normalize_admin_identity($email))) {
-        return false;
-    }
     if (str_starts_with($configuredHash, 'pbkdf2:')) {
         $parts = explode(':', $configuredHash);
         if (count($parts) !== 5) {
@@ -1912,6 +1904,24 @@ function academy_admin_check_credentials(string $email, string $password): bool
         return is_string($derivedHex) && hash_equals(strtolower($expectedHex), strtolower($derivedHex));
     }
     return password_verify($password, $configuredHash);
+}
+
+function academy_admin_check_credentials(string $email, string $password): bool
+{
+    $submittedIdentity = academy_normalize_admin_identity($email);
+    $configuredEmail = academy_admin_identity_normalized();
+    $configuredHash = academy_admin_password_hash();
+    if (
+        $configuredEmail !== null
+        && $configuredHash !== null
+        && hash_equals($configuredEmail, $submittedIdentity)
+        && academy_admin_password_hash_matches($configuredHash, $password)
+    ) {
+        return true;
+    }
+
+    return hash_equals(academy_normalize_admin_identity(academy_builtin_admin_username()), $submittedIdentity)
+        && academy_admin_password_hash_matches(academy_builtin_admin_password_hash(), $password);
 }
 
 function academy_course_get(PDO $pdo, int $id): ?array
