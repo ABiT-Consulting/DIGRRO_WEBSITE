@@ -634,6 +634,68 @@ jobs:
             rm -f "${runtime_env_file}"
           }
 
+          clear_academy_php_cache() {
+            local token
+            local cache_clear_file
+            local root
+            local url
+            local response
+            local roots=(
+              "public_html/digrro.com"
+              "digrro.com"
+              "public_html/digrro"
+              "public_html"
+            )
+            local urls=(
+              "https://digrro.com/academy/academy-cache-clear.php"
+            )
+
+            token="$(openssl rand -hex 16)"
+            cache_clear_file="$(mktemp)"
+            cat > "$cache_clear_file" <<PHP
+          <?php
+          declare(strict_types=1);
+          \$expectedToken = '${token}';
+          if (!isset(\$_GET['token']) || !hash_equals(\$expectedToken, (string) \$_GET['token'])) {
+              http_response_code(404);
+              exit;
+          }
+
+          \$root = __DIR__;
+          \$files = glob(\$root . '/api/*.php') ?: [];
+          \$files[] = __FILE__;
+          \$invalidated = 0;
+          if (function_exists('opcache_invalidate')) {
+              foreach (\$files as \$file) {
+                  if (is_file(\$file) && opcache_invalidate(\$file, true)) {
+                      \$invalidated++;
+                  }
+              }
+          }
+
+          @unlink(__FILE__);
+          header('Content-Type: application/json');
+          echo json_encode(['ok' => true, 'invalidated' => \$invalidated], JSON_UNESCAPED_SLASHES);
+          PHP
+
+            for root in "${roots[@]}"; do
+              ensure_cpanel_dir "$root" "academy"
+              publish_academy_file "$cache_clear_file" "${root}/academy" "academy-cache-clear.php"
+            done
+
+            for url in "${urls[@]}"; do
+              response="$(mktemp)"
+              if curl "${curl_flags[@]}" --get --data-urlencode "token=${token}" "$url" -o "$response"; then
+                echo "Cleared academy PHP cache through ${url}"
+                sed -n '1,80p' "$response" || true
+              else
+                echo "Academy PHP cache clear request failed for ${url}"
+              fi
+            done
+
+            rm -f "$cache_clear_file"
+          }
+
           direct_publish_main_site_assets() {
             local account_home="/home/${CPANEL_USER}"
             local root
@@ -747,6 +809,7 @@ jobs:
 
           direct_publish_academy_runtime_env
           direct_publish_academy_assets
+          clear_academy_php_cache
           cleanup_runtime_files
 
           echo "Runtime env was prepared through cPanel Fileman when secrets were available. Publishing academy assets through cPanel Git deployment."
