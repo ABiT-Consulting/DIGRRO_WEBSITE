@@ -555,6 +555,7 @@ jobs:
               "public_html/test.digrro.com"
               "test.digrro.com"
               "public_html/digrro.com"
+              "digrro.com"
               "public_html/digrro"
               "public_html"
             )
@@ -612,6 +613,7 @@ jobs:
               "public_html/test.digrro.com"
               "test.digrro.com"
               "public_html/digrro.com"
+              "digrro.com"
               "public_html/digrro"
               "public_html"
             )
