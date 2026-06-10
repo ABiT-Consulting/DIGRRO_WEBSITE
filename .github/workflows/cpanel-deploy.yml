@@ -558,7 +558,6 @@ jobs:
               "public_html/digrro"
               "public_html"
             )
-            local asset
             local api_file
             local page_file
 
@@ -575,23 +574,9 @@ jobs:
                 publish_academy_file "dist/academy/api/${api_file}" "${root}/academy/api" "$api_file"
               done < <(find dist/academy/api -maxdepth 1 -type f -printf '%f\n' || true)
 
-              asset_failure=0
-              asset_count=0
-              while IFS= read -r asset; do
-                if upload_academy_file "dist/academy/assets/${asset}" "${root}/academy/assets" "$asset"; then
-                  asset_count=$((asset_count + 1))
-                else
-                  asset_failure=1
-                fi
-              done < <(find dist/academy/assets -maxdepth 1 -type f -printf '%f\n' || true)
-
-              if (( asset_count > 0 && asset_failure == 0 )); then
-                for page_file in index.html admin.html reset-password.html; do
-                  publish_academy_file "dist/academy/${page_file}" "${root}/academy" "${page_file}"
-                done
-              else
-                echo "Skipping direct index publish for ${root}/academy because asset upload was incomplete"
-              fi
+              for page_file in index.html admin.html reset-password.html index-live.html; do
+                publish_academy_file "dist/academy/${page_file}" "${root}/academy" "${page_file}"
+              done
             done
           }
 
