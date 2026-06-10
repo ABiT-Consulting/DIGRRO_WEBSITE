@@ -1632,7 +1632,7 @@ function academy_builtin_admin_username(): string
 
 function academy_builtin_admin_password_hash(): string
 {
-    return 'pbkdf2:sha256:210000:9e92fc16877c9f38cd25acbb8ff0e0e5:f1a6fefac6481ca2e0407fd5445341c7c62b37f709feedba417064dc3cdd4a617d90fca47f251668774919238efd18334b742c46e5b2bba5e08eed385bdd2bdc';
+    return '$2y$10$CtUWmDPh.ilZS6lpYy/eeuYQ1hxkfALeTEfMyfb2Hk0xw.mfDGjYm';
 }
 
 function academy_builtin_admin_token_secret(): string
