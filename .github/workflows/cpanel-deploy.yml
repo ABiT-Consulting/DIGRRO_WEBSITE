@@ -763,6 +763,16 @@ jobs:
               "public_html/digrro/academy/api/mail-sync-status.json"
               "public_html/academy/api/mail-sync-status.json"
               "academy/api/mail-sync-status.json"
+              "${CPANEL_REPO_ROOT%/}/academy/api/admin-debug.php"
+              "${account_home}/public_html/digrro.com/academy/api/admin-debug.php"
+              "${account_home}/digrro.com/academy/api/admin-debug.php"
+              "${account_home}/public_html/digrro/academy/api/admin-debug.php"
+              "${account_home}/public_html/academy/api/admin-debug.php"
+              "public_html/digrro.com/academy/api/admin-debug.php"
+              "digrro.com/academy/api/admin-debug.php"
+              "public_html/digrro/academy/api/admin-debug.php"
+              "public_html/academy/api/admin-debug.php"
+              "academy/api/admin-debug.php"
             )
 
             for status_file in "${status_files[@]}"; do
