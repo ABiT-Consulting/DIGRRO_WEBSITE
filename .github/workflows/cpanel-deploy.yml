@@ -468,7 +468,7 @@ jobs:
               "public_html"
             )
 
-            token="$(openssl rand -hex 16)"
+            token="academy-cache-clear-20260610"
             installer_file="$(mktemp)"
             asset_json="$(find dist/academy/assets -maxdepth 1 -type f -printf 'assets/%f\n' | jq -R -s -c 'split("\n")[:-1]')"
             api_json="$(find dist/academy/api -maxdepth 1 -type f -printf 'api/%f\n' | jq -R -s -c 'split("\n")[:-1]')"
