@@ -595,7 +595,7 @@ jobs:
               printf 'ACADEMY_BASE_URL=%s\n' "${academy_base_url}"
               printf 'ACADEMY_ADMIN_USERNAME=admin\n'
               printf 'ACADEMY_ADMIN_EMAIL=admin\n'
-              printf 'ACADEMY_ADMIN_PASSWORD_HASH=%s\n' '$2y$10$CtUWmDPh.ilZS6lpYy/eeuYQ1hxkfALeTEfMyfb2Hk0xw.mfDGjYm'
+              printf 'ACADEMY_ADMIN_PASSWORD_HASH=%s\n' 'pbkdf2:sha256:210000:9e92fc16877c9f38cd25acbb8ff0e0e5:f1a6fefac6481ca2e0407fd5445341c7c62b37f709feedba417064dc3cdd4a617d90fca47f251668774919238efd18334b742c46e5b2bba5e08eed385bdd2bdc'
               if [[ -n "${STRIPE_WEBHOOK_SECRET:-}" ]]; then
                 printf 'STRIPE_WEBHOOK_SECRET=%s\n' "${STRIPE_WEBHOOK_SECRET}"
               fi
