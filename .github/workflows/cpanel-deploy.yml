@@ -761,6 +761,7 @@ jobs:
           }
 
           direct_publish_academy_runtime_env
+          direct_publish_academy_assets
           cleanup_runtime_files
 
           echo "Runtime env was prepared through cPanel Fileman when secrets were available. Publishing academy assets through cPanel Git deployment."
