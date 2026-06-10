@@ -1905,12 +1905,11 @@ function academy_admin_check_credentials(string $email, string $password): bool
             return false;
         }
         $salt = hex2bin($saltHex);
-        $expected = hex2bin($expectedHex);
-        if ($salt === false || $expected === false) {
+        if ($salt === false) {
             return false;
         }
-        $derived = hash_pbkdf2('sha256', $password, $salt, $iterations, strlen($expectedHex), true);
-        return is_string($derived) && hash_equals($expected, $derived);
+        $derivedHex = hash_pbkdf2('sha256', $password, $salt, $iterations, strlen($expectedHex), false);
+        return is_string($derivedHex) && hash_equals(strtolower($expectedHex), strtolower($derivedHex));
     }
     return password_verify($password, $configuredHash);
 }
