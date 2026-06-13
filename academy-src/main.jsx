@@ -157,6 +157,12 @@ const text = {
   payCopy: ['Account-linked payment with instant academy access after successful checkout.', 'دفع مرتبط بالحساب مع وصول فوري للأكاديمية بعد نجاح عملية الدفع.'],
   price: ['Course Price', 'سعر الدورة'],
   safe: ['Secure payment', 'دفع آمن'],
+  batchStartLabel: ['Next batch starts', 'تبدأ الدفعة القادمة'],
+  batchCountdownLabel: ['Starts in', 'تبدأ خلال'],
+  countdownDays: ['Days', 'أيام'],
+  countdownHours: ['Hours', 'ساعات'],
+  countdownMinutes: ['Minutes', 'دقائق'],
+  countdownSeconds: ['Seconds', 'ثواني'],
   heroStatOne: ['12 hours', '12 ساعة'],
   heroStatTwo: ['30 seats', '30 مقعدا'],
   heroStatThree: ['Arabic / English', 'العربية / الإنجليزية'],
@@ -251,6 +257,28 @@ function tr(key) {
   const value = text[key];
   if (!value) return key;
   return value[isArabic ? 1 : 0];
+}
+
+function nextBatchStartDate(from = new Date()) {
+  return new Date(from.getFullYear(), from.getMonth() + 1, 1, 0, 0, 0, 0);
+}
+
+function formatBatchStartDate(date) {
+  return new Intl.DateTimeFormat(isArabic ? 'ar' : 'en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function countdownParts(targetDate, from = new Date()) {
+  const diff = Math.max(0, targetDate.getTime() - from.getTime());
+  const totalSeconds = Math.floor(diff / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return { days, hours, minutes, seconds };
 }
 
 function formatUsd(value) {
@@ -942,6 +970,40 @@ function Hero({ course, reserve, setReserve, openEnroll }) {
   );
 }
 
+function BatchCountdown() {
+  const [now, setNow] = useState(() => new Date());
+  const batchStart = nextBatchStartDate(now);
+  const remaining = countdownParts(batchStart, now);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="fx-batch-countdown">
+      <div className="fx-batch-date">
+        <Clock3 size={18} />
+        <span>{tr('batchStartLabel')}</span>
+        <strong>{formatBatchStartDate(batchStart)}</strong>
+      </div>
+      <div className="fx-countdown-grid" aria-label={tr('batchCountdownLabel')}>
+        {[
+          ['days', remaining.days, tr('countdownDays')],
+          ['hours', remaining.hours, tr('countdownHours')],
+          ['minutes', remaining.minutes, tr('countdownMinutes')],
+          ['seconds', remaining.seconds, tr('countdownSeconds')],
+        ].map(([key, value, label]) => (
+          <span key={key}>
+            <strong>{String(value).padStart(2, '0')}</strong>
+            <small>{label}</small>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ReservePanel({ course, reserve, setReserve, openEnroll }) {
   const reserveCountryOptionsId = 'reserve-country-options';
   const reserveCityOptionsId = 'reserve-city-options';
@@ -1030,6 +1092,7 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
           {reserveEduEligible ? tr('studentDiscountApplied') : tr('studentDiscountEligible')}
         </p>
       )}
+      <BatchCountdown />
       <MagneticButton className="w-full" onClick={() => openEnroll('reserve_panel')}>
         {tr('primaryCta')} <Rocket size={18} />
       </MagneticButton>

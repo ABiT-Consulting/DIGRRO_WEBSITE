@@ -2854,6 +2854,75 @@ body:has(.fx-academy) {
   color: #baf7c9;
 }
 
+.fx-batch-countdown {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.75rem 0 0.85rem;
+  padding: 0.78rem;
+  border: 1px solid rgba(255, 200, 87, 0.3);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 200, 87, 0.12), rgba(72, 161, 255, 0.08)),
+    rgba(255, 255, 255, 0.035);
+}
+
+.fx-batch-date {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.18rem 0.5rem;
+  align-items: center;
+}
+
+.fx-batch-date svg {
+  grid-row: span 2;
+  color: var(--fx-gold);
+}
+
+.fx-batch-date span {
+  color: var(--fx-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.fx-batch-date strong {
+  color: var(--fx-text);
+  font-size: 0.96rem;
+  font-weight: 950;
+}
+
+.fx-countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.38rem;
+}
+
+.fx-countdown-grid span {
+  display: grid;
+  min-width: 0;
+  min-height: 58px;
+  place-items: center;
+  padding: 0.42rem 0.22rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(4, 10, 20, 0.42);
+}
+
+.fx-countdown-grid strong {
+  color: #fff5ca;
+  font-size: clamp(1.05rem, 2vw, 1.28rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.fx-countdown-grid small {
+  margin-top: 0.18rem;
+  color: var(--fx-muted);
+  font-size: 0.58rem;
+  font-weight: 850;
+  line-height: 1.15;
+  text-align: center;
+}
+
 .fx-checkout-price-preview,
 .fx-enrollment-discount {
   display: flex;
