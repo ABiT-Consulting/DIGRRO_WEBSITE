@@ -109,9 +109,14 @@ try {
             ]);
         }
     }
+    $studentDiscount = academy_student_discount_for_plan($plan, $email);
+    $appliedDiscount = academy_best_discount($promo, $studentDiscount);
+    if ($promo !== null && $appliedDiscount !== $promo) {
+        academy_release_promo_reservation($pdo, $checkoutReference);
+    }
 
     $originalAmountUsd = (float) $plan['amountUsd'];
-    $amountUsd = academy_discounted_amount_usd($plan, $promo);
+    $amountUsd = academy_discounted_amount_usd($plan, $appliedDiscount);
     $shouldSendConfirmation = false;
     $confirmationToken = null;
     $accountId = null;
@@ -262,8 +267,8 @@ try {
         'plan_name' => $plan['label'],
         'amount_usd' => $amountUsd,
         'original_amount_usd' => $originalAmountUsd,
-        'promo_code' => $promo !== null ? (string) $promo['code'] : null,
-        'promo_discount_percent' => $promo !== null ? (float) $promo['discount_percent'] : null,
+        'promo_code' => $appliedDiscount !== null ? (string) $appliedDiscount['code'] : null,
+        'promo_discount_percent' => $appliedDiscount !== null ? (float) $appliedDiscount['discount_percent'] : null,
         'checkout_url' => $checkoutUrl,
         'checkout_reference' => $checkoutReference,
     ]);
@@ -280,12 +285,12 @@ try {
     $pdo->commit();
 
     try {
-        $checkoutSession = academy_create_checkout_session($plan, $email, $phoneNumber, $checkoutReference, $promo);
+        $checkoutSession = academy_create_checkout_session($plan, $email, $phoneNumber, $checkoutReference, $appliedDiscount);
         academy_record_checkout_session($pdo, $checkoutReference, $checkoutSession);
         $checkoutUrl = academy_normalize_stripe_checkout_url((string) $checkoutSession['url']);
     } catch (Throwable $stripeError) {
         academy_release_promo_reservation($pdo, $checkoutReference);
-        if ($promo !== null) {
+        if ($appliedDiscount !== null) {
             $clearPromo = $pdo->prepare(
                 'UPDATE academy_enrollments
                  SET amount_usd = COALESCE(original_amount_usd, amount_usd),

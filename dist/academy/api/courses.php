@@ -29,6 +29,14 @@ foreach ($plans as $plan) {
         'label' => $plan['label'] ?? '',
         'amountUsd' => (float) ($plan['amountUsd'] ?? 0),
         'priceText' => '$' . number_format((float) ($plan['amountUsd'] ?? 0), 0),
+        'studentDiscountEnabled' => (bool) ($plan['studentDiscountEnabled'] ?? true),
+        'studentDiscountPercent' => (float) ($plan['studentDiscountPercent'] ?? academy_student_discount_percent()),
+        'studentDiscountAmountUsd' => academy_discounted_amount_usd($plan, [
+            'discount_percent' => (float) ($plan['studentDiscountPercent'] ?? academy_student_discount_percent()),
+        ]),
+        'studentDiscountPriceText' => '$' . number_format(academy_discounted_amount_usd($plan, [
+            'discount_percent' => (float) ($plan['studentDiscountPercent'] ?? academy_student_discount_percent()),
+        ]), 0),
         'durationText' => $plan['durationText'] ?? '',
         'audienceText' => $plan['audienceText'] ?? '',
         'teacherName' => $plan['teacherName'] ?? '',
