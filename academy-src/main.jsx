@@ -987,6 +987,7 @@ function BatchCountdown() {
         <span>{tr('batchStartLabel')}</span>
         <strong>{formatBatchStartDate(batchStart)}</strong>
       </div>
+      <p className="fx-batch-urgency">{tr('batchCountdownLabel')}</p>
       <div className="fx-countdown-grid" aria-label={tr('batchCountdownLabel')}>
         {[
           ['days', remaining.days, tr('countdownDays')],
@@ -1032,6 +1033,7 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
           <span>{studentDiscountOfferText(course)}</span>
         </div>
       )}
+      <BatchCountdown />
       <div className="fx-form-stack">
         <label>
           <span>{tr('fullName')}</span>
@@ -1092,7 +1094,6 @@ function ReservePanel({ course, reserve, setReserve, openEnroll }) {
           {reserveEduEligible ? tr('studentDiscountApplied') : tr('studentDiscountEligible')}
         </p>
       )}
-      <BatchCountdown />
       <MagneticButton className="w-full" onClick={() => openEnroll('reserve_panel')}>
         {tr('primaryCta')} <Rocket size={18} />
       </MagneticButton>

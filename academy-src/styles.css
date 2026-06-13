@@ -2890,6 +2890,15 @@ body:has(.fx-academy) {
   font-weight: 950;
 }
 
+.fx-batch-urgency {
+  color: #ffe69b;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .fx-countdown-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
