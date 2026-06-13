@@ -12,9 +12,9 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="./assets/admin-CzGnTfKP.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/styles-Bmv99SVT.js">
-    <link rel="stylesheet" crossorigin href="./assets/styles-D-XgHsik.css">
+    <script type="module" crossorigin src="./assets/admin-cil9yj5I.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/styles-CWFz8PQP.js">
+    <link rel="stylesheet" crossorigin href="./assets/styles-C65KyrAZ.css">
   </head>
   <body>
     <header class="topbar">
@@ -70,6 +70,7 @@
             <button class="admin-tab is-active" type="button" data-admin-tab="courses">Courses</button>
             <button class="admin-tab" type="button" data-admin-tab="trainers">Trainers</button>
             <button class="admin-tab" type="button" data-admin-tab="students">Students</button>
+            <button class="admin-tab" type="button" data-admin-tab="analytics">Analytics</button>
           </div>
 
           <section class="admin-panel is-active" id="admin-panel-courses" data-admin-panel="courses">
@@ -109,6 +110,29 @@
             </div>
             <div class="form-status" id="admin-students-status" role="status" aria-live="polite">Loading students...</div>
             <div id="admin-students-list" class="grid-2 admin-list"></div>
+          </section>
+
+          <section class="admin-panel" id="admin-panel-analytics" data-admin-panel="analytics" hidden>
+            <div class="section-head admin-panel-head">
+              <div>
+                <span class="section-kicker">Analytics</span>
+                <h3 class="section-title" style="margin-top: 0.4rem;">Academy page activity</h3>
+                <p class="section-desc">Review visitors, subscription clicks, registration attempts, subscribers, and checkout activity.</p>
+              </div>
+              <button class="btn btn-secondary" type="button" id="admin-refresh-analytics">Refresh</button>
+            </div>
+            <div class="form-status" id="admin-analytics-status" role="status" aria-live="polite">Loading analytics...</div>
+            <div id="admin-analytics-summary" class="admin-metric-grid"></div>
+            <div class="admin-report-grid">
+              <article class="card admin-report-card">
+                <h3>Daily activity</h3>
+                <div id="admin-analytics-daily" class="admin-table-wrap"></div>
+              </article>
+              <article class="card admin-report-card">
+                <h3>Recent events</h3>
+                <div id="admin-analytics-events" class="admin-table-wrap"></div>
+              </article>
+            </div>
           </section>
         </div>
       </section>
@@ -183,6 +207,12 @@
               <label class="checkline">
                 <input id="course-is-active" type="checkbox" checked />
                 Active on the public page
+              </label>
+            </div>
+            <div class="field full">
+              <label class="checkline">
+                <input id="course-student-discount-enabled" type="checkbox" checked />
+                Eligible for automatic .edu student discount
               </label>
             </div>
           </div>
