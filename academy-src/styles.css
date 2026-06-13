@@ -2890,6 +2890,14 @@ body:has(.fx-academy) {
   font-weight: 950;
 }
 
+.fx-countdown-label {
+  color: #fff5ca;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .fx-countdown-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

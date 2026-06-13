@@ -987,7 +987,8 @@ function BatchCountdown() {
         <span>{tr('batchStartLabel')}</span>
         <strong>{formatBatchStartDate(batchStart)}</strong>
       </div>
-      <div className="fx-countdown-grid" aria-label={tr('batchCountdownLabel')}>
+      <div className="fx-countdown-label">{tr('batchCountdownLabel')}</div>
+      <div className="fx-countdown-grid" aria-label={tr('batchCountdownLabel')} aria-live="polite">
         {[
           ['days', remaining.days, tr('countdownDays')],
           ['hours', remaining.hours, tr('countdownHours')],
