@@ -564,6 +564,7 @@ jobs:
             local api_file
             local page_file
             local text_asset
+            local text_asset_size
 
             for root in "${roots[@]}"; do
               if [[ -z "$root" ]]; then
@@ -579,6 +580,11 @@ jobs:
               done < <(find dist/academy/api -maxdepth 1 -type f -printf '%f\n' || true)
 
               while IFS= read -r text_asset; do
+                text_asset_size="$(wc -c < "dist/academy/assets/${text_asset}")"
+                if (( text_asset_size > 120000 )); then
+                  echo "Skipping direct text publish for ${text_asset}; remote asset sync will publish it."
+                  continue
+                fi
                 publish_academy_file "dist/academy/assets/${text_asset}" "${root}/academy/assets" "$text_asset"
               done < <(find dist/academy/assets -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' -o -name '*.svg' \) -printf '%f\n' || true)
 
@@ -586,6 +592,141 @@ jobs:
                 publish_academy_file "dist/academy/${page_file}" "${root}/academy" "${page_file}"
               done
             done
+          }
+
+          run_academy_remote_asset_sync() {
+            local sync_file
+            local token
+            local asset_json
+            local raw_base
+            local root
+            local url
+            local response
+            local roots=(
+              "public_html/test.digrro.com"
+              "test.digrro.com"
+              "public_html/digrro.com"
+              "digrro.com"
+              "public_html/digrro"
+              "public_html"
+            )
+            local urls=(
+              "https://digrro.com/academy/academy-remote-asset-sync.php"
+            )
+
+            token="$(openssl rand -hex 16)"
+            raw_base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/dist/academy"
+            sync_file="$(mktemp)"
+            asset_json="$(find dist/academy/assets -maxdepth 1 -type f -printf 'assets/%f\n' | sort | jq -R -s -c 'split("\n")[:-1]')"
+
+            cat > "$sync_file" <<PHP
+          <?php
+          declare(strict_types=1);
+          \$expectedToken = '${token}';
+          if (!isset(\$_GET['token']) || !hash_equals(\$expectedToken, (string) \$_GET['token'])) {
+              http_response_code(404);
+              exit;
+          }
+
+          \$rawBase = '${raw_base}';
+          \$targetRoot = __DIR__;
+          \$files = ${asset_json};
+          \$synced = [];
+          \$errors = [];
+
+          \$buildUrl = static function (string \$relative) use (\$rawBase): string {
+              \$segments = array_map('rawurlencode', explode('/', \$relative));
+              return \$rawBase . '/' . implode('/', \$segments);
+          };
+
+          \$fetch = static function (string \$url): array {
+              if (function_exists('curl_init')) {
+                  \$curl = curl_init(\$url);
+                  curl_setopt_array(\$curl, [
+                      CURLOPT_RETURNTRANSFER => true,
+                      CURLOPT_FOLLOWLOCATION => true,
+                      CURLOPT_CONNECTTIMEOUT => 10,
+                      CURLOPT_TIMEOUT => 60,
+                      CURLOPT_USERAGENT => 'academy-asset-sync',
+                  ]);
+                  \$body = curl_exec(\$curl);
+                  \$status = (int) curl_getinfo(\$curl, CURLINFO_HTTP_CODE);
+                  \$error = curl_error(\$curl);
+                  curl_close(\$curl);
+                  return [\$status >= 200 && \$status < 300 && \$body !== false, \$body, \$status, \$error];
+              }
+
+              \$context = stream_context_create([
+                  'http' => [
+                      'timeout' => 60,
+                      'ignore_errors' => true,
+                      'header' => "User-Agent: academy-asset-sync\r\n",
+                  ],
+              ]);
+              \$body = @file_get_contents(\$url, false, \$context);
+              \$status = 0;
+              if (isset(\$http_response_header[0]) && preg_match('/\s(\d{3})\s/', \$http_response_header[0], \$matches)) {
+                  \$status = (int) \$matches[1];
+              }
+              return [\$status >= 200 && \$status < 300 && \$body !== false, \$body, \$status, ''];
+          };
+
+          foreach (\$files as \$relative) {
+              \$target = \$targetRoot . '/' . \$relative;
+              \$targetDir = dirname(\$target);
+              if (!is_dir(\$targetDir) && !mkdir(\$targetDir, 0755, true) && !is_dir(\$targetDir)) {
+                  \$errors[] = "mkdir failed: {\$targetDir}";
+                  continue;
+              }
+
+              [\$ok, \$body, \$status, \$error] = \$fetch(\$buildUrl(\$relative));
+              if (!\$ok || !is_string(\$body)) {
+                  \$errors[] = "download failed: {\$relative} status={\$status} {\$error}";
+                  continue;
+              }
+
+              \$tmp = \$target . '.tmp';
+              if (file_put_contents(\$tmp, \$body, LOCK_EX) === false || !rename(\$tmp, \$target)) {
+                  @unlink(\$tmp);
+                  \$errors[] = "write failed: {\$relative}";
+                  continue;
+              }
+              @chmod(\$target, 0644);
+              \$synced[] = \$relative;
+          }
+
+          header('Content-Type: application/json');
+          echo json_encode([
+              'ok' => count(\$errors) === 0,
+              'synced' => count(\$synced),
+              'errors' => \$errors,
+          ], JSON_UNESCAPED_SLASHES);
+
+          if (count(\$errors) === 0) {
+              @unlink(__FILE__);
+          }
+          PHP
+
+            for root in "${roots[@]}"; do
+              ensure_cpanel_dir "$root" "academy"
+              publish_academy_file "$sync_file" "${root}/academy" "academy-remote-asset-sync.php"
+            done
+
+            for url in "${urls[@]}"; do
+              response="$(mktemp)"
+              if ! curl "${curl_flags[@]}" --get --data-urlencode "token=${token}" "$url" -o "$response"; then
+                echo "::error::Academy remote asset sync request failed for ${url}"
+                exit 1
+              fi
+              jq . "$response"
+              if ! jq -e '.ok == true' "$response" >/dev/null; then
+                echo "::error::Academy remote asset sync reported errors for ${url}"
+                exit 1
+              fi
+              echo "Synced academy assets through ${url}"
+            done
+
+            rm -f "$sync_file"
           }
 
           create_academy_runtime_env() {
@@ -828,6 +969,7 @@ jobs:
 
           direct_publish_academy_runtime_env
           direct_publish_academy_assets
+          run_academy_remote_asset_sync
           clear_academy_php_cache
           cleanup_runtime_files
 
@@ -840,13 +982,17 @@ jobs:
             "branch=${branch}"
           jq_ok_or_dump "$update_resp"
           jq . "$update_resp"
-          jq_status_or_error "$update_resp" "VersionControl/update"
-
-          echo "Copying academy release from the cPanel repo into public web roots."
-          server_copy_academy_release
-          run_academy_php_asset_installer
-          direct_publish_main_site_assets
-          echo "Academy release copied through cPanel Fileman server-side copy."
+          if jq -e '((.result // .).status // 0) == 1' "$update_resp" >/dev/null 2>&1; then
+            echo "Copying academy release from the cPanel repo into public web roots."
+            server_copy_academy_release
+            run_academy_php_asset_installer
+            direct_publish_main_site_assets
+            echo "Academy release copied through cPanel Fileman server-side copy."
+          else
+            raw="$(jq -c '.' "$update_resp" 2>/dev/null || true)"
+            raw="${raw:0:1500}"
+            echo "::warning::VersionControl/update failed after direct academy publish. Skipping cPanel repo copy. Response(excerpt): ${raw}"
+          fi
           exit 0
 
           deployable="$(jq -r '(.result // .).data.deployable // 0' "$update_resp")"
