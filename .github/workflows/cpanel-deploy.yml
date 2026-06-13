@@ -563,6 +563,7 @@ jobs:
             )
             local api_file
             local page_file
+            local text_asset
 
             for root in "${roots[@]}"; do
               if [[ -z "$root" ]]; then
@@ -576,6 +577,10 @@ jobs:
               while IFS= read -r api_file; do
                 publish_academy_file "dist/academy/api/${api_file}" "${root}/academy/api" "$api_file"
               done < <(find dist/academy/api -maxdepth 1 -type f -printf '%f\n' || true)
+
+              while IFS= read -r text_asset; do
+                publish_academy_file "dist/academy/assets/${text_asset}" "${root}/academy/assets" "$text_asset"
+              done < <(find dist/academy/assets -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' -o -name '*.svg' \) -printf '%f\n' || true)
 
               for page_file in index.html admin.html reset-password.html index-live.html; do
                 publish_academy_file "dist/academy/${page_file}" "${root}/academy" "${page_file}"
