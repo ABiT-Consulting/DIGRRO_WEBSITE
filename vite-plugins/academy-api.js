@@ -348,7 +348,7 @@ function stripeSecretKey(env) {
 }
 
 function academyBaseUrl(env) {
-  return trimTrailingSlash(env.FRONTEND_URL || env.ACADEMY_BASE_URL || env.VITE_ACADEMY_BASE_URL || 'http://127.0.0.1:5174');
+  return trimTrailingSlash(env.FRONTEND_URL || env.ACADEMY_BASE_URL || env.VITE_ACADEMY_BASE_URL || 'http://127.0.0.1:5176');
 }
 
 function normalizeStripeCheckoutUrl(value) {

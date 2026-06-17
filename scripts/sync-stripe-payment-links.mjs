@@ -130,7 +130,7 @@ function defaultAcademyBaseUrl(localEnv) {
     return 'https://digrro.com/academy';
   }
 
-  const devPort = pickEnv(localEnv, 'VITE_DEV_PORT') || '5174';
+  const devPort = pickEnv(localEnv, 'VITE_DEV_PORT') || '5176';
   return `http://127.0.0.1:${devPort}`;
 }
 

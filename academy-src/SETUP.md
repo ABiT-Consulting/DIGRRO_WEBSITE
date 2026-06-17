@@ -62,7 +62,7 @@ Recommended local `.env.local` Stripe settings:
 
 ```bash
 ACADEMY_ENV=development
-FRONTEND_URL=http://127.0.0.1:5174
+FRONTEND_URL=http://127.0.0.1:5176
 STRIPE_SECRET_KEY_TEST=sk_test_...
 ```
 

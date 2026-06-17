@@ -49,7 +49,7 @@ function loadLocalEnv() {
 
 function frontendDefaults(env) {
   const configuredUrl = env.FRONTEND_URL || env.ACADEMY_BASE_URL || '';
-  const fallbackPort = env.VITE_DEV_PORT || '5174';
+  const fallbackPort = env.VITE_DEV_PORT || '5176';
   const configuredHost = env.VITE_DEV_HOST || env.DEV_HOST || '';
   if (configuredHost) {
     return { host: configuredHost, port: fallbackPort };
