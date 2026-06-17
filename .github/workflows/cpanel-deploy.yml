@@ -833,7 +833,12 @@ jobs:
             "branch=${branch}"
           jq_ok_or_dump "$update_resp"
           jq . "$update_resp"
-          jq_status_or_error "$update_resp" "VersionControl/update"
+          if ! jq -e '((.result // .).status // 0) == 1' "$update_resp" >/dev/null 2>&1; then
+            raw="$(jq -c '.' "$update_resp" 2>/dev/null || true)"
+            raw="${raw:0:1500}"
+            echo "::warning::VersionControl/update failed after direct academy publish. Skipping cPanel repo copy. Response(excerpt): ${raw}"
+            exit 0
+          fi
 
           echo "Copying academy release from the cPanel repo into public web roots."
           server_copy_academy_release
