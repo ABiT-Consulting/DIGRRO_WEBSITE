@@ -578,7 +578,7 @@ jobs:
 
               while IFS= read -r asset; do
                 upload_academy_file "dist/academy/assets/${asset}" "${root}/academy/assets" "$asset" || true
-              done < <(find dist/academy/assets -maxdepth 1 -type f -printf '%f\n' || true)
+              done < <(find dist/academy/assets -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' -o -name '*.svg' \) -printf '%f\n' || true)
 
               for page_file in index.html admin.html reset-password.html index-live.html; do
                 publish_academy_file "dist/academy/${page_file}" "${root}/academy" "${page_file}"
