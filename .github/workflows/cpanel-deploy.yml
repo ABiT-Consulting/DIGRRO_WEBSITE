@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - cpanel-deploy
   workflow_dispatch: {}
 
 permissions:
@@ -89,29 +88,16 @@ jobs:
           git fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}" || true
           git push --force-with-lease="refs/heads/${DEPLOY_BRANCH}" origin "HEAD:${DEPLOY_BRANCH}"
 
-      - name: Dispatch cPanel deploy workflow
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          curl -sS --fail-with-body -X POST \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${REPOSITORY}/actions/workflows/cpanel-deploy.yml/dispatches" \
-            -d '{"ref":"cpanel-deploy"}'
-
   deploy:
-    if: github.ref == 'refs/heads/cpanel-deploy'
+    needs: sync-cpanel-branch
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
+          ref: cpanel-deploy
           fetch-depth: 0
 
       - name: Trigger cPanel deployment and wait
