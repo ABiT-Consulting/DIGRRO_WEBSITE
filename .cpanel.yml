@@ -1,6 +1,5 @@
 # cPanel Git deployment config
-# Deploy the production academy build from ./dist/academy without clearing the
-# main document root.
+# Deploy the main website static files from ./dist/ and the academy build.
 deployment:
   tasks:
     - 'if [ -d "${HOME}/public_html/digrro.com" ]; then export DEPLOYPATH="${HOME}/public_html/digrro.com/"; elif [ -d "${HOME}/digrro.com" ]; then export DEPLOYPATH="${HOME}/digrro.com/"; elif [ -d "${HOME}/public_html/digrro" ]; then export DEPLOYPATH="${HOME}/public_html/digrro/"; elif [ -d "${HOME}/public_html" ]; then export DEPLOYPATH="${HOME}/public_html/"; else echo "ERROR: Digrro deploy path not found. Create ${HOME}/public_html or a dedicated document root such as ${HOME}/public_html/digrro.com."; exit 1; fi'
@@ -14,5 +13,7 @@ deployment:
     - 'if [ -d ./dist/academy-data ]; then /bin/cp -a ./dist/academy-data/. "$DEPLOYPATH/academy-data/"; fi'
     - 'if [ -f ./dist/.htaccess ]; then /bin/cp -a ./dist/.htaccess "$DEPLOYPATH/.htaccess"; fi'
     - 'if [ -d ./dist/api ]; then /bin/mkdir -p "$DEPLOYPATH/api" && /bin/cp -a ./dist/api/. "$DEPLOYPATH/api/"; fi'
+    - 'if [ -d ./dist/assets ]; then /bin/mkdir -p "$DEPLOYPATH/assets" && /bin/cp -a ./dist/assets/. "$DEPLOYPATH/assets/"; fi'
+    - 'if [ -f ./dist/index.html ]; then /bin/cp -a ./dist/index.html "$DEPLOYPATH/index.html"; fi'
     - 'if [ -f ./.env ]; then /bin/cp -a ./.env "$DEPLOYPATH/.env"; elif [ ! -f "$DEPLOYPATH/.env" ]; then echo "WARNING: No .env found in the repository or deploy path. Create $DEPLOYPATH/.env in cPanel for SMTP and runtime settings."; fi'
     - '/bin/bash ./.cpanel/sync-academy-mail.sh "$DEPLOYPATH"'
