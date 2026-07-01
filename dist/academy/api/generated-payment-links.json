@@ -1,6 +1,13 @@
 {
-  "mode": "live-runtime",
-  "generatedAt": "2026-06-04T10:02:41.773Z",
+  "mode": "live",
+  "generatedAt": "2026-07-01T20:25:13.532Z",
   "academyBaseUrl": "https://digrro.com/academy",
-  "links": {}
+  "links": {
+    "sprint": {
+      "productId": null,
+      "priceId": null,
+      "paymentLinkId": null,
+      "url": "https://buy.stripe.com/bJedRag7D4RNceU3rSdjO06"
+    }
+  }
 }

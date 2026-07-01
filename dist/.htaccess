@@ -19,10 +19,7 @@
   RewriteCond %{REQUEST_URI} !^/academy(/|$) [NC]
   RewriteRule ^(.*)$ academy/$1 [L]
 
-  # Allow direct access to PHP API files (academy and main site)
+  # Allow direct access to PHP API files
   RewriteCond %{REQUEST_URI} ^/academy/api/.*\.php$ [NC]
-  RewriteRule ^(.*)$ - [L]
-
-  RewriteCond %{REQUEST_URI} ^/api/.*\.php$ [NC]
   RewriteRule ^(.*)$ - [L]
 </IfModule>

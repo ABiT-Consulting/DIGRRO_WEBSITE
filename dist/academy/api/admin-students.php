@@ -84,7 +84,7 @@ function academy_admin_student_payload(array $payload, bool $isCreate): array
 function academy_admin_student_enrollments(PDO $pdo, int $accountId): array
 {
     $statement = $pdo->prepare(
-        'SELECT id, plan_key, plan_name, amount_usd, payment_status, academic_status, checkout_reference, created_at, paid_at
+        'SELECT id, plan_key, plan_name, amount_usd, original_amount_usd, promo_code, promo_discount_percent, payment_status, academic_status, checkout_reference, created_at, paid_at
          FROM academy_enrollments
          WHERE account_id = :account_id
          ORDER BY created_at DESC, id DESC'
@@ -98,6 +98,12 @@ function academy_admin_student_enrollments(PDO $pdo, int $accountId): array
             'planKey' => (string) $row['plan_key'],
             'planName' => (string) $row['plan_name'],
             'amountUsd' => (float) $row['amount_usd'],
+            'originalAmountUsd' => (float) ($row['original_amount_usd'] ?? $row['amount_usd']),
+            'promoCode' => (string) ($row['promo_code'] ?? ''),
+            'promoDiscountPercent' => (float) ($row['promo_discount_percent'] ?? 0),
+            'discountLabel' => !empty($row['promo_code'])
+                ? ((string) $row['promo_code'] === 'STUDENT-EDU' ? 'Student .edu discount' : 'Promo discount')
+                : '',
             'paymentStatus' => (string) $row['payment_status'],
             'academicStatus' => (string) $row['academic_status'],
             'checkoutReference' => (string) $row['checkout_reference'],
