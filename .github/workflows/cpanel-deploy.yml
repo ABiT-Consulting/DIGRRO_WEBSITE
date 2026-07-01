@@ -435,6 +435,23 @@ jobs:
 
               copy_cpanel_file "${source_root}/dist/academy/index-live.html" "${root}/academy" "index-live.html"
               copy_cpanel_file "${source_root}/dist/academy/.htaccess" "${root}/academy" ".htaccess"
+
+              # Main site: copy assets, api, and root-level files from dist/
+              ensure_cpanel_dir "$root" "assets"
+              while IFS= read -r asset; do
+                copy_cpanel_file "${source_root}/dist/assets/${asset}" "${root}/assets" "$asset"
+              done < <(find dist/assets -maxdepth 1 -type f -printf '%f\n' || true)
+
+              if [[ -d dist/api ]]; then
+                ensure_cpanel_dir "$root" "api"
+                while IFS= read -r api_file; do
+                  copy_cpanel_file "${source_root}/dist/api/${api_file}" "${root}/api" "$api_file"
+                done < <(find dist/api -maxdepth 1 -type f -printf '%f\n' || true)
+              fi
+
+              while IFS= read -r root_file; do
+                copy_cpanel_file "${source_root}/dist/${root_file}" "${root}" "$root_file"
+              done < <(find dist -maxdepth 1 -type f -printf '%f\n' || true)
             done
           }
 
