@@ -1,9 +1,11 @@
+import { resolveApiUrl } from './lib/api-url.js';
+
 const RESET_PASSWORD_API = './api/reset-password.php';
 const STUDENT_TOKEN_KEY = 'digrro_academy_student_token';
 const $ = (id) => document.getElementById(id);
 
 function api(path) {
-  return new URL(path, window.location.href).href;
+  return resolveApiUrl(path);
 }
 
 function setStatus(node, message, kind) {

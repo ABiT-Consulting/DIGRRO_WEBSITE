@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { loadCourses } from './lib/courses.js';
 import { initGoogleAnalytics } from './lib/google-analytics.js';
+import { resolveApiUrl } from './lib/api-url.js';
 
 import cinematicPreview from './assets/academy-create-cinematic.mp4';
 import reelsPreview from './assets/academy-create-reels.mp4';
@@ -384,7 +385,7 @@ function switchLanguage() {
 }
 
 function api(path) {
-  return new URL(path, window.location.href).href;
+  return resolveApiUrl(path);
 }
 
 function ref() {

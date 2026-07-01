@@ -1,8 +1,10 @@
-const LOGIN_API = './api/admin-login.php';
-const COURSES_API = './api/admin-courses.php';
-const TRAINERS_API = './api/admin-trainers.php';
-const STUDENTS_API = './api/admin-students.php';
-const ANALYTICS_API = './api/admin-analytics.php';
+import { resolveApiUrl } from './lib/api-url.js';
+
+const LOGIN_API = resolveApiUrl('./api/admin-login.php');
+const COURSES_API = resolveApiUrl('./api/admin-courses.php');
+const TRAINERS_API = resolveApiUrl('./api/admin-trainers.php');
+const STUDENTS_API = resolveApiUrl('./api/admin-students.php');
+const ANALYTICS_API = resolveApiUrl('./api/admin-analytics.php');
 const TOKEN_KEY = 'digrro_academy_admin_token';
 const $ = (id) => document.getElementById(id);
 

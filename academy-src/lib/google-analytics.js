@@ -1,3 +1,5 @@
+import { resolveApiUrl } from './api-url.js';
+
 const BUILD_GOOGLE_ANALYTICS_ID = String(
   import.meta.env.VITE_GOOGLE_ANALYTICS_ID || import.meta.env.VITE_GA_MEASUREMENT_ID || '',
 ).trim();
@@ -40,8 +42,7 @@ function installGoogleAnalytics(measurementId) {
 }
 
 async function loadRuntimeMeasurementId() {
-  const configUrl = new URL('./api/public-config.php', window.location.href);
-  const response = await fetch(configUrl.href, {
+  const response = await fetch(resolveApiUrl('./api/public-config.php'), {
     headers: { Accept: 'application/json' },
     cache: 'no-store',
   });

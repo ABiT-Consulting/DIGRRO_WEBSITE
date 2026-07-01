@@ -1,10 +1,12 @@
 // Loads live course metadata for checkout without rendering a repeated plan section.
 
+import { resolveApiUrl } from './api-url.js';
+
 const COURSES_API = './api/courses.php';
 
 export async function loadCourses() {
   try {
-    const res = await fetch(COURSES_API, { headers: { Accept: 'application/json' } });
+    const res = await fetch(resolveApiUrl(COURSES_API), { headers: { Accept: 'application/json' } });
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) return [];
 
