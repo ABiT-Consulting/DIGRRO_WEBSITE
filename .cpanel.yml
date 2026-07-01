@@ -13,5 +13,6 @@ deployment:
     - '/bin/cp -a ./academy-server/api/. "$DEPLOYPATH/academy/api/"'
     - 'if [ -d ./dist/academy-data ]; then /bin/cp -a ./dist/academy-data/. "$DEPLOYPATH/academy-data/"; fi'
     - 'if [ -f ./dist/.htaccess ]; then /bin/cp -a ./dist/.htaccess "$DEPLOYPATH/.htaccess"; fi'
+    - 'if [ -d ./dist/api ]; then /bin/mkdir -p "$DEPLOYPATH/api" && /bin/cp -a ./dist/api/. "$DEPLOYPATH/api/"; fi'
     - 'if [ -f ./.env ]; then /bin/cp -a ./.env "$DEPLOYPATH/.env"; elif [ ! -f "$DEPLOYPATH/.env" ]; then echo "WARNING: No .env found in the repository or deploy path. Create $DEPLOYPATH/.env in cPanel for SMTP and runtime settings."; fi'
     - '/bin/bash ./.cpanel/sync-academy-mail.sh "$DEPLOYPATH"'
