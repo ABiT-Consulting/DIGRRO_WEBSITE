@@ -706,6 +706,7 @@ jobs:
             local root_file
             local asset
             local video
+            local api_file
 
             for root in "${roots[@]}"; do
               if [[ -z "$root" ]]; then
@@ -726,6 +727,13 @@ jobs:
                 while IFS= read -r video; do
                   upload_academy_file "dist/videos/${video}" "${root}/videos" "$video" || true
                 done < <(find dist/videos -maxdepth 1 -type f -printf '%f\n' || true)
+              fi
+
+              if [[ -d dist/api ]]; then
+                ensure_cpanel_dir "$root" "api"
+                while IFS= read -r api_file; do
+                  publish_academy_file "dist/api/${api_file}" "${root}/api" "$api_file"
+                done < <(find dist/api -maxdepth 1 -type f -printf '%f\n' || true)
               fi
             done
           }
@@ -814,6 +822,7 @@ jobs:
 
           direct_publish_academy_runtime_env
           direct_publish_academy_assets
+          direct_publish_main_site_assets
           clear_academy_php_cache
           cleanup_runtime_files
 
@@ -836,7 +845,6 @@ jobs:
           echo "Copying academy release from the cPanel repo into public web roots."
           server_copy_academy_release
           run_academy_php_asset_installer
-          direct_publish_main_site_assets
           echo "Academy release copied through cPanel Fileman server-side copy."
           exit 0
 
